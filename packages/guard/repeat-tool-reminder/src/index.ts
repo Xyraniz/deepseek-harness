@@ -33,7 +33,11 @@ export const name = 'repeat-tool-reminder'
  * (`exclude: [mcp_*]` must stay legal in a deployment that loads no MCP tools).
  */
 export interface Config {
-  /** Consecutive-repeat counts that trigger a reminder (default `[3, 5, 8]`). */
+  /**
+   * Consecutive-repeat counts that trigger reminders. After the highest value,
+   * the gap between the last two sets the recurring interval; if only one is
+   * configured, that value is the interval (default `[3, 5, 8]`: every 3 after 8).
+   */
   thresholds?: number[]
   /** Tool-name patterns to track; empty means every tool is tracked. */
   include?: string[]
@@ -79,9 +83,10 @@ function detailedReminder(toolName: string, count: number, canonicalArguments: s
     + `- tool: ${toolName}\n`
     + `- consecutive_calls: ${count}\n`
     + `- arguments: ${canonicalArguments}\n`
-    + 'The repeated calls are not making progress. Do not call this tool with '
-    + 'these exact arguments again. Inspect the latest result and choose a '
-    + 'different action, different arguments, or finish the task if enough '
+    + 'The repeated calls are not making progress. Earlier reminders have not '
+    + 'stopped this loop. Stop repeating this call now. Try a different tool '
+    + 'or approach. If you are blocked, explain what is blocking progress and '
+    + 'ask the user for the missing information; otherwise finish if enough '
     + 'evidence has been gathered.'
 }
 
@@ -170,6 +175,13 @@ export function apply(ctx: Context, config: Config): void {
   // schemastery's .default() guarantees the fields are set after validation.
   const thresholds = validateThresholds(config.thresholds as number[])
   const thresholdSet = new Set(thresholds)
+  // validateThresholds guarantees a non-empty sorted list. For one threshold,
+  // the zero prefix makes that value its own interval.
+  const [previousThreshold, finalThreshold] = thresholds.reduce<[number, number]>(
+    (tail, threshold) => [tail[1], threshold],
+    [0, 0],
+  )
+  const reminderInterval = finalThreshold - previousThreshold
   const includePatterns = (config.include as string[]).map(wildcardToRegExp)
   const excludePatterns = (config.exclude as string[]).map(wildcardToRegExp)
   const argumentsPreviewChars = config.argumentsPreviewChars as number
@@ -187,7 +199,7 @@ export function apply(ctx: Context, config: Config): void {
 
   /**
    * Advance the calling agent's chain for one attempt and return the reminder
-   * to deliver, if this attempt's run length hits a configured threshold.
+   * to deliver, if this attempt hits a configured threshold or recurring cadence.
    * Counting happens here — in post-execute — because denied calls also flow
    * through this waterfall (`ToolRuntime.execute` routes a deny through the
    * same pipeline), and a model hammering a denied call is exactly the loop
@@ -203,7 +215,8 @@ export function apply(ctx: Context, config: Config): void {
     const chain = chains.get(exec.agent)
     const count = chain !== undefined && chain.key === key ? chain.count + 1 : 1
     chains.set(exec.agent, { key, count })
-    if (!thresholdSet.has(count)) return undefined
+    const recurringReminder = count > finalThreshold && (count - finalThreshold) % reminderInterval === 0
+    if (!thresholdSet.has(count) && !recurringReminder) return undefined
     const text = count === thresholds[0]
       ? GENTLE_REMINDER
       : detailedReminder(exec.name, count, previewArguments(canonical, argumentsPreviewChars))

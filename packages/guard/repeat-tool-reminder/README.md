@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package helps a model escape loops in which it calls the same tool with identical arguments without making progress. At configured repeat counts, it asks the model to inspect the previous result and change approach or finish. The reminder is advisory: it never blocks or delays a legitimate repeated call. Repeats are tracked separately for each agent and cleared by a new user message. The `dsh` base bundle enables the package with reminders at 3, 5, and 8 repeats.
+This package helps a model escape loops in which it calls the same tool with identical arguments without making progress. At configured repeat counts, it asks the model to inspect the previous result and change approach or finish. After the highest configured count, it keeps reminding at an interval set by the gap between the last two thresholds (or by the sole threshold when only one is configured). The reminder is advisory: it never blocks or delays a legitimate repeated call. Repeats are tracked separately for each agent and cleared by a new user message. The `dsh` base bundle enables the package with reminders at 3, 5, and 8 repeats, then every 3 more repeats.
 
 ## Table of Contents
 
@@ -55,7 +55,7 @@ Invalid configuration fails at startup with a clear error — an empty `threshol
 
 ### What you get
 
-With the defaults, a model that repeats the same call with identical arguments receives a short reminder on the third repeat — to analyze the previous result before calling again — and detailed reminders on the fifth and eighth, naming the tool and the repeated arguments so it can decide whether to change approach, gather more evidence, or finish. A new user message clears the count, so a fresh instruction is never treated as a loop. Reminders appear in the conversation after the repeated call's result, attributed to the plugin, so the model reads them like any other message.
+With the defaults, a model that repeats the same call with identical arguments receives a short reminder on the third call, then detailed reminders on the fifth and eighth calls and every three repeats after that (11, 14, 17, …). The later reminders name the tool and arguments and tell the model to stop repeating the call, try another approach, or explain what is blocking progress. A new user message clears the count, so a fresh instruction is never treated as a loop. Reminders appear after the repeated call's result, attributed to the plugin, so the model reads them like any other message.
 
 -----
 
@@ -139,7 +139,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 #### What the model sees
 
-A later threshold receives the detailed reminder template below. A capped argument preview ends exactly `… (+<omitted> more chars)`.
+Each later configured threshold and recurring reminder uses the detailed template below. After the final threshold, reminders recur at the interval derived from the last two thresholds, or at the sole threshold when only one is configured. A capped argument preview ends exactly `… (+<omitted> more chars)`.
 
 ##### Later-threshold reminder
 
@@ -148,7 +148,7 @@ Repeated tool call detected:
 - tool: <toolName>
 - consecutive_calls: <count>
 - arguments: <canonicalArguments>
-The repeated calls are not making progress. Do not call this tool with these exact arguments again. Inspect the latest result and choose a different action, different arguments, or finish the task if enough evidence has been gathered.
+The repeated calls are not making progress. Earlier reminders have not stopped this loop. Stop repeating this call now. Try a different tool or approach. If you are blocked, explain what is blocking progress and ask the user for the missing information; otherwise finish if enough evidence has been gathered.
 ```
 
 #### Token effect
@@ -168,10 +168,10 @@ These limits define when the guard is a poor fit. They are current package const
 
 - **Exact-match detection only** — canonicalization is a deep key-sort, so near-identical variants (a tweaked path, extra whitespace inside a value) evade the chain; fuzzy matching is rejected pending evidence of need.
 - **Compaction does not reset chains** — a chain spanning a compaction checkpoint keeps counting.
-- **Advisory only** — escalating to a blocking form at a high threshold is not implemented, though `PostToolDecision` already supports blocking.
+- **Advisory only** — even recurring reminders cannot stop a model that ignores them; the guard does not automatically cancel tool calls.
 - **No subagent chain-sharing** — chains stay isolated per agent; a parent and its subagent repeating the same call never combine.
 - **Legitimate idempotent polling still draws nudges** past the thresholds — the pressure valves are the `thresholds`/`exclude` config.
-- **Past the highest threshold a chain goes silent** — reminders fire only at exact configured counts, never beyond them.
+
 
 <a id="dev-note"></a>
 ### Dev Note

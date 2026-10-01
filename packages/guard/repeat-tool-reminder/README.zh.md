@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包帮助模型跳出以相同参数反复调用同一工具却没有进展的循环。达到配置的重复次数时，它会要求模型检查上一次结果并改变方法或结束任务。提醒只是建议，绝不会阻止或延迟合理的重复调用。每个 agent 的重复分别跟踪，新的用户消息会清除计数。`dsh` 基础组合包默认启用本包，并在重复 3、5、8 次时提醒。
+本包帮助模型跳出以相同参数反复调用同一工具却没有进展的循环。达到配置的重复次数时，它会要求模型检查上一次结果并改变方法或结束任务。达到最高阈值后，它会按最后两个阈值之间的间隔继续提醒；如果只配置了一个阈值，则使用该值作为间隔。提醒只是建议，绝不会阻止或延迟合理的重复调用。每个 agent 的重复分别跟踪，新的用户消息会清除计数。`dsh` 基础组合包默认在 3、5、8 次提醒，此后每多重复 3 次再提醒。
 
 ## 目录
 
@@ -55,7 +55,7 @@ kind: "package-reference"
 
 ### 你会得到什么
 
-按默认值，以相同参数重复同一调用的模型会在第三次重复时收到简短提醒——先分析上一次结果再调用——并在第五次和第八次收到详细提醒，列出工具与重复参数，使其决定改变方法、收集更多证据还是结束任务。新的用户消息会清零计数，因此全新指令绝不会被当作循环。提醒出现在重复调用的结果之后、归属于插件，模型像阅读任何其他消息一样阅读它。
+按默认值，以相同参数重复同一调用的模型会在第三次调用时收到简短提醒，并在第五、第八次及此后每多重复三次时收到详细提醒（第 11、14、17 次……）。后续提醒会列出工具与参数，要求模型停止重复调用、尝试其他方法，或说明阻碍进展的原因。新的用户消息会清零计数，因此全新指令绝不会被当作循环。提醒出现在重复调用结果之后并归属于插件，模型像阅读其他消息一样阅读它。
 
 -----
 
@@ -139,7 +139,7 @@ You are repeating the exact same tool call with identical arguments. Carefully a
 
 #### 模型看到什么
 
-达到后续阈值时，agent 会收到下面的详细提醒模板。受上限约束的参数预览严格以 `… (+<omitted> more chars)` 结尾。
+达到后续配置阈值及后续周期时，agent 会收到下面的详细提醒模板。最后一个阈值之后，提醒间隔由最后两个阈值之间的差值决定；若只配置一个阈值，则使用该值作为间隔。受上限约束的参数预览严格以 `… (+<omitted> more chars)` 结尾。
 
 ##### 后续阈值提醒
 
@@ -148,7 +148,7 @@ Repeated tool call detected:
 - tool: <toolName>
 - consecutive_calls: <count>
 - arguments: <canonicalArguments>
-The repeated calls are not making progress. Do not call this tool with these exact arguments again. Inspect the latest result and choose a different action, different arguments, or finish the task if enough evidence has been gathered.
+The repeated calls are not making progress. Earlier reminders have not stopped this loop. Stop repeating this call now. Try a different tool or approach. If you are blocked, explain what is blocking progress and ask the user for the missing information; otherwise finish if enough evidence has been gathered.
 ```
 
 #### Token 影响
@@ -168,10 +168,10 @@ The repeated calls are not making progress. Do not call this tool with these exa
 
 - **仅精确匹配检测**——规范化是深度键排序，因此近似变体（稍作修改的路径、值内多余的空白）会绕过链；在没有需求证据前，不采用模糊匹配。
 - **压缩（compaction）不会重置链**——跨越压缩检查点的链会继续计数。
-- **仅提供建议**——尚未实现高阈值时升级为阻止形式，但 `PostToolDecision` 已支持阻止。
+- **仅提供建议**——即使持续提醒，也无法阻止忽略提醒的模型；guard 不会自动取消工具调用。
 - **subagent 之间不共享链**——链始终按 agent 隔离；父 agent 与其 subagent 重复相同调用也绝不合并。
 - **合理的幂等轮询超过阈值后仍会收到提醒**——可通过 `thresholds`／`exclude` 配置释放压力。
-- **超过最高阈值后链不再提醒**——提醒只在精确达到所配置的次数时触发，超过后不会继续发送。
+
 
 <a id="dev-note"></a>
 ### 开发备注
