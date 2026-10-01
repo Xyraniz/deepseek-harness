@@ -3818,7 +3818,7 @@ export interface Config {
 
 - `inject`: `tools` · `subagents` · `systemPrompt` · `sessionProjections`
 - `refs`: [`AgentOptions`](subsystems/core.md)
-- `source`: [`packages/subagent/tool-subagent/src/index.ts:48`](../packages/subagent/tool-subagent/src/index.ts)
+- `source`: [`packages/subagent/tool-subagent/src/index.ts:50`](../packages/subagent/tool-subagent/src/index.ts)
 
 ```ts config-catalog
 /** Config: which registered provider this tool delegates to, plus child defaults. */
@@ -3826,8 +3826,9 @@ export interface Config {
   /** The `ctx.subagents` provider name to start runs on (e.g. `spawn`, `acp`). */
   provider: string
   /**
-   * Model-facing tool name (default `subagent`). Each loaded instance must use
-   * a distinct name.
+   * Model-facing tool name (default `subagent`). Instances in the same scope
+   * must use distinct names; duplicate `toolName` values fail during plugin
+   * application, even while their providers are absent.
    */
   toolName?: string
   /**

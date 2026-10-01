@@ -25,7 +25,7 @@ Use this package to give an agent a named tool that delegates work to a configur
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount one instance per delegation target, each with a distinct `toolName`. The tool exists exactly while its provider does, so sibling load order and provider reloads never strand it.
+Mount one instance per delegation target, each with a distinct `toolName` in the same registration scope. Repeated `toolName` values fail during plugin application, even when their providers have not registered yet. The tool exists exactly while its provider does, so sibling load order and provider reloads never strand it.
 
 ### Minimal configuration
 
@@ -43,7 +43,7 @@ Load the subagent service, an in-process or remote backend, and this tool; then 
 | Field | Default | Meaning |
 |---|---|---|
 | `provider` | required | Provider name on `ctx.subagents` (e.g. `spawn`, `fork`, `acp`) |
-| `toolName` | `subagent` | Model-facing tool name; distinct for every loaded instance |
+| `toolName` | `subagent` | Model-facing tool name; distinct for each instance in the same registration scope |
 | `modelSelectionSettings` | `false` | Sample the Host's exact-route authorization preference for each top-level Session; a standing preset observes matching Sessions, while direct Agent setup passes its Session explicitly; requires provider `agentOptions` support |
 | `enableRunInBackground` | `true` | Expose `run_in_background`; disabling also rejects forced background calls |
 | `backgroundMode` | `one-shot` | Background policy: `one-shot` defaults calls to foreground; `continuable` defaults them to background and requires the provider's `prepareContinuable` capability |
@@ -209,7 +209,6 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define what this tool does not return or enforce; they are current package constraints.
 
 - **Background runs expose no result through this tool** — a one-shot task's final output is collected through the generic task surface, and a continuable child's output stays in its own session, read by its subagent id. The settlement notice states how that child ended and carries nonempty text from its final assistant output, but it is not this call's return value and cannot be awaited here.
-- **Duplicate names across waiting one-shot instances are detected late** (`TODO(subagent-dup-toolname)`) — continuable instances reserve their prompt-section name during plugin application, but preventing provider-registration rollback for waiting one-shot instances requires a registry of intended names.
 - **Shipped fork tools cannot select a child LLM route** — they inherit the parent's provider and model to keep the copied conversation prefix eligible for KV Cache reuse. Re-enable selection only when route changes preserve reuse or expose a bounded recomputation cost.
 - **Non-routing child policy is fixed per instance** — another persona, tool filter, or depth cap requires another distinctly named tool. LLM selection requires an enabled per-Session preference and a provider that advertises `agentOptions`; both in-process providers and DSH SDK advertise it, while ACP, Codex, and Claude Code reject it rather than ignore it.
 

@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-每个委派目标挂载一个实例，且每个实例的 `toolName` 必须不同。工具与其提供方同时存在、同时消失，因此同级加载顺序与提供方重新加载都不会让工具悬空。
+每个委派目标挂载一个实例；同一注册作用域内，每个实例都要使用不同的 `toolName`。重复的 `toolName` 会在插件应用时被拒绝，即使其提供方尚未注册。工具仅在提供方存在时注册，因此同级加载顺序与提供方重新加载都不会让工具悬空。
 
 ### 最小配置
 
@@ -43,7 +43,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `provider` | 必填 | `ctx.subagents` 上的提供方名称（如 `spawn`、`fork`、`acp`） |
-| `toolName` | `subagent` | 面向模型的工具名称；每个已加载实例必须不同 |
+| `toolName` | `subagent` | 面向模型的工具名称；同一注册作用域内的各个实例必须不同 |
 | `modelSelectionSettings` | `false` | 为每个顶层 Session 读取宿主的精确路由授权偏好；常驻 preset 观察匹配 Session，直接 Agent setup 则显式传入其 Session；要求提供方支持 `agentOptions` |
 | `enableRunInBackground` | `true` | 公开 `run_in_background`；禁用时也会拒绝强制后台调用 |
 | `backgroundMode` | `one-shot` | 后台策略：`one-shot` 默认前台调用；`continuable` 默认后台调用，并要求提供方具备 `prepareContinuable` 能力 |
@@ -209,7 +209,6 @@ Start independent subagent delegations together in one assistant message and con
 这些限制说明本工具不返回或不强制执行什么；它们是当前包约束。
 
 - **后台运行不通过本工具公开结果**——一次性任务的最终输出通过通用 Task 接口收集，可继续子 agent 的输出留在其自身会话中，按其 subagent id 读取。结算通知会说明该子 agent 如何结束，并携带其最终 assistant 输出中的非空文本，但它不是本次调用的返回值，也无法在此等待。
-- **等待中的一次性实例较晚才发现重复名称**（`TODO(subagent-dup-toolname)`）——可继续实例会在插件应用期间预留提示词 section 名称，但若要阻止等待中的一次性实例回滚提供方注册，仍需要一份预期名称注册表。
 - **随附 fork 工具不能选择子级 LLM 路由**——它们继承父级提供方与模型，使复制的对话前缀仍有资格复用 KV Cache。仅当路由变更能保留复用或公开有界重算成本时，才重新启用选择。
 - **非路由子 agent 策略按实例固定**——另一个 persona、工具过滤器或深度上限需要另一个名称不同的工具。LLM 选择要求启用逐 Session 偏好，且提供方必须声明 `agentOptions`；两个进程内提供方和 DSH SDK 会声明该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
 

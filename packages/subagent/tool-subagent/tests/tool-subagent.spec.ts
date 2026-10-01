@@ -355,6 +355,33 @@ describe('dsh-tool-subagent', () => {
     expect(text(result)).toBe('late but fine')
   })
 
+  it('reserves one-shot tool names before late providers mount and releases them with the plugin fiber', async () => {
+    const ctx = await projectedContext()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SubagentRuntime)
+
+    const first = await ctx.plugin(tool, { provider: 'later-first', toolName: 'shared_subagent' })
+    expect(ctx.tools.schemas().some(schema => schema.name === 'shared_subagent')).toBe(false)
+    await expect(ctx.plugin(tool, { provider: 'later-second', toolName: 'shared_subagent' }))
+      .rejects.toThrow('tool-subagent: tool name "shared_subagent" is already configured in the global scope')
+
+    const firstBackend = await mock.mountScriptedProvider(ctx, { name: 'later-first' })
+    const secondBackend = await mock.mountScriptedProvider(ctx, { name: 'later-second' })
+    expect(ctx.subagents.getProvider('later-second')).toBeDefined()
+    expect(ctx.tools.schemas().filter(schema => schema.name === 'shared_subagent')).toHaveLength(1)
+
+    await firstBackend.dispose()
+    await secondBackend.dispose()
+    await first.dispose()
+
+    const replacement = await ctx.plugin(tool, { provider: 'later-replacement', toolName: 'shared_subagent' })
+    const replacementBackend = await mock.mountScriptedProvider(ctx, { name: 'later-replacement' })
+    expect(ctx.tools.schemas().some(schema => schema.name === 'shared_subagent')).toBe(true)
+    await replacementBackend.dispose()
+    await replacement.dispose()
+  })
+
   it('keeps continuable guidance empty while its provider is absent', async () => {
     const ctx = await projectedContext()
     await ctx.plugin(SystemPrompt)

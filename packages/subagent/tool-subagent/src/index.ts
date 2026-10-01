@@ -9,8 +9,10 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import { symbols } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { scopeChainOf, scopeOf } from '@deepseek-ai/dsh-scope'
+import { NamedEntries, ScopedLayers, scopeChainOf, scopeOf } from '@deepseek-ai/dsh-scope'
+import type { ScopeKey, ScopeLayer } from '@deepseek-ai/dsh-scope'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
@@ -49,8 +51,9 @@ export interface Config {
   /** The `ctx.subagents` provider name to start runs on (e.g. `spawn`, `acp`). */
   provider: string
   /**
-   * Model-facing tool name (default `subagent`). Each loaded instance must use
-   * a distinct name.
+   * Model-facing tool name (default `subagent`). Instances in the same scope
+   * must use distinct names; duplicate `toolName` values fail during plugin
+   * application, even while their providers are absent.
    */
   toolName?: string
   /**
@@ -304,6 +307,41 @@ function resolveDelegationRun(
   }
 }
 
+/** One composition scope's reserved model-facing subagent tool names. */
+class ToolNameIntentLayer implements ScopeLayer {
+  readonly names: NamedEntries<true>
+
+  constructor(scope: ScopeKey | undefined) {
+    this.names = new NamedEntries(name => new Error(scope === undefined
+      ? `tool-subagent: tool name "${name}" is already configured in the global scope`
+      : `tool-subagent: tool name "${name}" is already configured in this scope`))
+  }
+
+  isEmpty(): boolean {
+    return this.names.isEmpty()
+  }
+}
+
+const toolNameIntents = new WeakMap<object, ScopedLayers<ToolNameIntentLayer>>()
+
+/** Reserve a configured tool name before its provider can arrive. */
+function reserveToolName(ctx: Context, name: string): void {
+  // Cordis gives each caller a traceable service view; reserve on the shared runtime.
+  const original: unknown = Reflect.get(ctx.tools, symbols.original)
+  const owner = (typeof original === 'object' && original !== null) || typeof original === 'function'
+    ? original
+    : ctx.tools
+  let registry = toolNameIntents.get(owner)
+  if (registry === undefined) {
+    registry = new ScopedLayers(scope => new ToolNameIntentLayer(scope), () => {})
+    toolNameIntents.set(owner, registry)
+  }
+  registry.effect(ctx, layer => layer.names.insert(name, true), {
+    label: 'tool-subagent.reserveToolName()',
+    notify: false,
+  })
+}
+
 /**
  * Install one delegation-tool composition.
  * @param ctx - Context that owns the registrations.
@@ -321,6 +359,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
   const backgroundEnabled = config.enableRunInBackground !== false
   const continuable = (config.backgroundMode ?? 'one-shot') === 'continuable'
   const toolName = config.toolName ?? 'subagent'
+  reserveToolName(ctx, toolName)
 
   const modelSelectionCapable = config.modelSelectionSettings === true
   ctx.sessionProjections.register(subagentModelSelectionProjectionDefinition)
@@ -571,11 +610,6 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
     }
 
     // Register listeners before checking presence so no synchronous change is missed.
-    // TODO(subagent-dup-toolname): two waiting one-shot fibers configured with the
-    // same toolName collide when their provider appears, and the duplicate-name
-    // throw rolls back the provider registration. Continuable instances reserve
-    // their prompt-section name during apply() and fail earlier. Add an intent
-    // registry if the late one-shot collision occurs in a shipped composition.
     runtimeCtx.on('subagent/provider-added', (subagentProvider) => {
       if (subagentProvider.name === config.provider && mounted === undefined) mount(subagentProvider)
     })
