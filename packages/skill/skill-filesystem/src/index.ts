@@ -12,11 +12,13 @@
 import { access, lstat, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { unwatchFile, watchFile, type Stats } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/cordis-plugin-loader'
 import chokidar from 'chokidar'
 import z from '@deepseek-ai/schemastery'
-import type Schema from '@deepseek-ai/schemastery'
 import { parse as parseYaml } from 'yaml'
 import type { FileSystem, FsDirEntry, FsTarget } from '@deepseek-ai/dsh-fs'
 import { canonicalizeWatchPath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
@@ -71,9 +73,16 @@ export interface Config {
   watchFollowSymlinks?: boolean
   /** Bundled skill root; defaults to `$DSH_BUNDLED_SKILL_DIR` when default roots are included, otherwise mounts none. */
   bundledSkillDir?: string
+  /** Whether the bundled Claude Design skill is included in the skill catalog. */
+  claudeDesignEnabled?: Volatile<boolean>
 }
 
-export const Config: Schema<Config> = z.object({
+/** Plain config values accepted before the volatile fields are wrapped by Cordis. */
+export type Options = Omit<Partial<Config>, 'claudeDesignEnabled'> & {
+  claudeDesignEnabled?: boolean
+}
+
+export const Config = z.object({
   providerName: z.string().min(1).default('filesystem'),
   includeDefaultRoots: z.boolean().default(true),
   dshHome: z.string(),
@@ -86,6 +95,7 @@ export const Config: Schema<Config> = z.object({
   watchMaxProjects: z.number().default(DEFAULT_WATCH_MAX_PROJECTS),
   watchFollowSymlinks: z.boolean().default(true),
   bundledSkillDir: z.string(),
+  claudeDesignEnabled: z.boolean().default(false).volatile(),
 })
 
 interface SkillRoot {
@@ -133,7 +143,9 @@ interface ResolvedWatchConfig {
 /** Register the local filesystem skill provider on `ctx.skills`. */
 export function apply(ctx: Context, config: Config = {}): void {
   let provider!: FileSystemSkillProvider
+  let invalidate = () => {}
   ctx.skills.registerProvider((control) => {
+    invalidate = control.invalidate
     provider = new FileSystemSkillProvider(ctx, control, config)
     return provider
   })
@@ -143,6 +155,9 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.on('fs/observed', (target, _observation, actor) => {
     if (mutationToolName(actor) === undefined) return
     provider.observeHostMutation(target.displayPath)
+  })
+  ctx.on('settings/document-updated', (namespace) => {
+    if (namespace === ctx.fiber.entry?.options.id) invalidate()
   })
 }
 
@@ -155,6 +170,8 @@ export class FileSystemSkillProvider implements SkillProvider {
   private readonly customSkillDirs: string[]
   private readonly watchManager: SkillWatchManager
   private readonly bundledSkillDir: string | undefined
+  private readonly claudeDesignSkillDir: string
+  private readonly config: Config
   private disposal: Promise<void> | undefined
 
   constructor(
@@ -162,6 +179,7 @@ export class FileSystemSkillProvider implements SkillProvider {
     control: SkillProviderControl,
     config: Config = {},
   ) {
+    this.config = config
     this.name = config.providerName ?? 'filesystem'
     this.includeDefaultRoots = config.includeDefaultRoots ?? true
     this.dshHome = resolveDshHome(config.dshHome)
@@ -175,6 +193,7 @@ export class FileSystemSkillProvider implements SkillProvider {
     const bundledSkillDir = config.bundledSkillDir
       ?? (this.includeDefaultRoots ? process.env.DSH_BUNDLED_SKILL_DIR : undefined)
     this.bundledSkillDir = bundledSkillDir === undefined ? undefined : resolve(bundledSkillDir)
+    this.claudeDesignSkillDir = resolve(fileURLToPath(new URL('../assets/bundled', import.meta.url)))
   }
 
   /**
@@ -195,6 +214,8 @@ export class FileSystemSkillProvider implements SkillProvider {
     const candidates: SkillCandidate[] = []
     for (const root of roots) {
       for (const skill of await discoverRoot(root, this.ctx, this.name)) {
+        if (this.config.claudeDesignEnabled?.get() !== true && skill.name === 'claude-design'
+          && root.path === this.claudeDesignSkillDir) continue
         candidates.push(skill)
       }
     }
@@ -260,6 +281,10 @@ export class FileSystemSkillProvider implements SkillProvider {
     }
     if (this.bundledSkillDir !== undefined) {
       roots.push({ path: this.bundledSkillDir, source: 'bundled', rank: BUNDLED_SKILL_RANK, trustedHost: true })
+    }
+    if (this.config.claudeDesignEnabled?.get() === true
+      && this.bundledSkillDir !== this.claudeDesignSkillDir) {
+      roots.push({ path: this.claudeDesignSkillDir, source: 'bundled', rank: BUNDLED_SKILL_RANK, trustedHost: true })
     }
     return roots
   }

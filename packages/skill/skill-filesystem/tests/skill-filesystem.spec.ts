@@ -151,7 +151,7 @@ class TestFileSystem extends FileSystem {
   }
 }
 
-async function setupLocal(home: string, config: Partial<SkillFileSystem.Config> = {}): Promise<Context> {
+async function setupLocal(home: string, config: SkillFileSystem.Options = {}): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SkillRegistry)
   await ctx.plugin(SkillFileSystem, {

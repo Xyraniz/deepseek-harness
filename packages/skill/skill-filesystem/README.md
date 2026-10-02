@@ -53,7 +53,7 @@ Default roots are scanned in this provider's rank order:
 | 400 | `user-dsh` | `<dshHome>/skills` |
 | 500 | `user-agents` | `<agentsHome>/skills` |
 
-The project root is the nearest ancestor containing `.git`; without one, the current cwd is used. The user DSH root skips its `.system` child. `includeDefaultRoots: false` omits the project and user rows plus the `$DSH_BUNDLED_SKILL_DIR` default so an isolated provider sees only its own configured roots; `bundledSkillDir` adds a bundled root at rank 600.
+The project root is the nearest ancestor containing `.git`; without one, the current cwd is used. The user DSH root skips its `.system` child. `includeDefaultRoots: false` omits the project and user rows plus the `$DSH_BUNDLED_SKILL_DIR` default so an isolated provider sees only its own configured roots; `bundledSkillDir` adds a bundled root at rank 600. The base profile also includes the packaged Claude Design skill at rank 600 when `claudeDesignEnabled` is true.
 
 ### Mount and configure
 
@@ -73,8 +73,11 @@ Load the plugin alongside the skill registry; it requires `ctx.skills`.
 | `customSkillDirs` | `[]` | Additional local skill roots, after project roots and before user roots |
 | `watch` | `true` | Watch local roots and invalidate the provider when the catalog may have changed |
 | `bundledSkillDir` | — | Bundled skill root scanned at rank 600 when configured |
+| `claudeDesignEnabled` | `false` | Include the packaged Claude Design skill; the base profile enables it and the Skills settings page controls it |
 
 The remaining `watch*` fields tune Chokidar behavior — polling, stability window, interval, project cap, and symlink following. The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-skill-filesystem) is the exhaustive source for every field.
+
+The packaged `claude-design` skill is sourced from NousResearch's Hermes Agent bundle and starts enabled in the base profile. Settings changes add or remove that bundled copy from the next skill catalog; a project or user skill with the same name still follows normal source priority.
 
 ### Change detection
 

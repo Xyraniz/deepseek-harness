@@ -286,6 +286,7 @@
       "@deepseek-ai/dsh-client-ui-settings-session-log": ["./packages/client/ui-settings-session-log/src"],
       "@deepseek-ai/dsh-client-ui-settings-subagent": ["./packages/client/ui-settings-subagent/src"],
       "@deepseek-ai/dsh-client-ui-settings-web-search": ["./packages/client/ui-settings-web-search/src"],
+      "@deepseek-ai/dsh-client-ui-settings-skills": ["./packages/client/ui-settings-skills/src"],
       "@deepseek-ai/dsh-client-ui-jobs": ["./packages/client/ui-jobs/src"],
       "@deepseek-ai/dsh-client-ui-jobs/client": ["./packages/client/ui-jobs/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-jobs/invariant": ["./packages/client/ui-jobs/src/invariant.ts"],

@@ -303,6 +303,8 @@
 
     - id: skill-filesystem
       name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        claudeDesignEnabled: true
 
     - id: skill-badge
       name: '@deepseek-ai/dsh-skill-badge'
