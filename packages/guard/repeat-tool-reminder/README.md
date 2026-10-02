@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package helps a model escape loops in which it calls the same tool with identical arguments without making progress. At configured repeat counts, it asks the model to inspect the previous result and change approach or finish. After the highest configured count, it keeps reminding at an interval set by the gap between the last two thresholds (or by the sole threshold when only one is configured). The reminder is advisory: it never blocks or delays a legitimate repeated call. Repeats are tracked separately for each agent and cleared by a new user message. The `dsh` base bundle enables the package with reminders at 3, 5, and 8 repeats, then every 3 more repeats.
+The package nudges the model when identical tool calls repeat without progress: at configured thresholds, it asks the model to inspect the previous result, change approach, or finish. After the highest threshold, reminders repeat at the gap between the last two thresholds, or after the sole threshold when only one is set; they never block or delay repeated calls. Counts are per agent and reset on a new user message. The `dsh` base bundle enables reminders at 3, 5, and 8 repeats, then every 3 more calls.
 
 ## Table of Contents
 

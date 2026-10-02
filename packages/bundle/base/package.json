@@ -61,6 +61,7 @@
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-llm-deepseek-api-key": "workspace:*",
     "@deepseek-ai/dsh-llm-deepseek-account": "workspace:*",
+    "@opencode2dsh/dsh-plugin": "0.3.5",
     "@deepseek-ai/dsh-llm-pi-ai": "workspace:*",
     "@deepseek-ai/dsh-llm-retry": "workspace:*",
     "@deepseek-ai/dsh-mcp-resources": "workspace:*",

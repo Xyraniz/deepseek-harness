@@ -58,6 +58,8 @@ flowchart LR
   cfg --> plugin_dsh_base_credentials
   plugin_dsh_base_llm_pi_ai["llm-pi-ai<br/>@deepseek-ai/dsh-llm-pi-ai"]
   cfg --> plugin_dsh_base_llm_pi_ai
+  plugin_dsh_base_opencode2dsh["opencode2dsh<br/>@opencode2dsh/dsh-plugin"]
+  cfg --> plugin_dsh_base_opencode2dsh
   plugin_dsh_base_session_persistence_jsonl["session-persistence-jsonl<br/>@deepseek-ai/dsh-session-persistence-jsonl"]
   cfg --> plugin_dsh_base_session_persistence_jsonl
   plugin_dsh_base_attachment_local["attachment-local<br/>@deepseek-ai/dsh-attachment-local"]
@@ -225,6 +227,7 @@ flowchart LR
 | `deepseek-account` | `@deepseek-ai/dsh-deepseek-account-platform` |
 | `credentials` | `@deepseek-ai/dsh-credentials-local` |
 | `llm-pi-ai` | `@deepseek-ai/dsh-llm-pi-ai` |
+| `opencode2dsh` | `@opencode2dsh/dsh-plugin` |
 | `session-persistence-jsonl` | `@deepseek-ai/dsh-session-persistence-jsonl` |
 | `attachment-local` | `@deepseek-ai/dsh-attachment-local` |
 | `session-query-sqlite` | `@deepseek-ai/dsh-session-query-sqlite` |

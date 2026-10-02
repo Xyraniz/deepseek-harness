@@ -12,6 +12,10 @@
 
 密钥是只写的。保存后，页面只会收到脱敏描述符，永远不会收到明文密钥。密钥存储在 `$DSH_HOME/.credentials.yaml` 中，settings 只保留它的凭据引用。
 
+## 使用 OpenCode Zen 免费模型
+
+DSH 在基础 profile 中内置了 `@opencode2dsh/dsh-plugin`。打开模型选择器，选择 `opencode2dsh` 分组中的模型。插件会刷新 Zen 模型列表，并只展示其目录判定为免费的模型；具体列表可能随上游变化。此 Zen 匿名通道无需 OpenCode 登录或 API 密钥。要发现最新免费模型，DSH 需要能够通过 HTTPS 访问 `opencode.ai` 和 `models.dev`。请求仍受 Zen 当前免费额度限制。
+
 ## 添加第三方提供商
 
 选择**添加模型提供商**。卡片默认打开在**第三方模型提供商**：选取 dsh 自带的提供商——列表显示的是提供商 id，例如 `anthropic`、`openai`、Kimi 对应的 `moonshotai`、GLM 对应的 `zai`——输入其 API 密钥并保存。已安装目录会提供端点、协议和模型列表。

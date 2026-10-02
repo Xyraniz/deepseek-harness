@@ -47,6 +47,12 @@ describe('dsh-base bundle', () => {
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-web-fetch-http')
+    expect(manifest.dependencies).toHaveProperty('@opencode2dsh/dsh-plugin', '0.3.5')
+    expect(rows.find(row => row.id === 'opencode2dsh')).toMatchObject({
+      name: '@opencode2dsh/dsh-plugin',
+      config: { mode: 'adapter' },
+    })
+    expect(rows.find(row => row.id === 'opencode2dsh')?.config).not.toHaveProperty('apiKeyEnv')
   })
 
   it('gates each shell stack by platform with a symmetric disabled expression', () => {

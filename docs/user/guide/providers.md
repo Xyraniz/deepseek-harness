@@ -12,6 +12,10 @@ Open **Settings → Models**. The DeepSeek card exposes one API-key field; enter
 
 Keys are write-only. The page receives a redacted descriptor after saving, never the literal secret. The key is stored in `$DSH_HOME/.credentials.yaml`, while settings retain only its credential reference.
 
+## Use OpenCode Zen free models
+
+DSH includes `@opencode2dsh/dsh-plugin`. In the model picker, choose a model from the `opencode2dsh` group. The plugin refreshes Zen's model list and exposes models its catalog identifies as free; the exact list can change upstream. This anonymous Zen lane needs no OpenCode login or API key. DSH needs outbound HTTPS to `opencode.ai` and `models.dev` to discover the current free models. Requests remain subject to Zen's current free-tier limits.
+
 ## Add a third-party provider
 
 Choose **Add model provider**. The card opens on **Third-party model provider**: pick a provider dsh ships with — the list shows provider ids such as `anthropic`, `openai`, `moonshotai` for Kimi, or `zai` for GLM — enter its API key, and save. The installed catalog supplies the endpoint, protocol, and model list.

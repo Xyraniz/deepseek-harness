@@ -127,6 +127,13 @@
     - id: llm-pi-ai
       name: '@deepseek-ai/dsh-llm-pi-ai'
 
+    # OpenCode Zen's free lane authenticates anonymously; the plugin owns the
+    # live free-model catalog and sends no user API key.
+    - id: opencode2dsh
+      name: '@opencode2dsh/dsh-plugin'
+      config:
+        mode: adapter
+
     - id: session-persistence-jsonl
       name: '@deepseek-ai/dsh-session-persistence-jsonl'
       config:

@@ -2408,7 +2408,11 @@ export type Config = LocalConfig
  * (`exclude: [mcp_*]` must stay legal in a deployment that loads no MCP tools).
  */
 export interface Config {
-  /** Consecutive-repeat counts that trigger a reminder (default `[3, 5, 8]`). */
+  /**
+   * Consecutive-repeat counts that trigger reminders. After the highest value,
+   * the gap between the last two sets the recurring interval; if only one is
+   * configured, that value is the interval (default `[3, 5, 8]`: every 3 after 8).
+   */
   thresholds?: number[]
   /** Tool-name patterns to track; empty means every tool is tracked. */
   include?: string[]

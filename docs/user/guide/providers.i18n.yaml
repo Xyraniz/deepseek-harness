@@ -8,6 +8,9 @@
 /configure-models/configure-deepseek:
   en: 2c6b665adc256b4e
   zh: 2240e4c1573ebe9c
+/configure-models/use-opencode-zen-free-models:
+  en: f7787075d58d6ebf
+  zh: 6ae30c268a998d10
 /configure-models/add-a-third-party-provider:
   en: 0fe5f88e692f618c
   zh: 4f2e493818d8934f

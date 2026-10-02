@@ -53,6 +53,7 @@ External packages installed for runtime use or distributed inside the prebuilt b
 | [`@noble/hashes`](https://github.com/paulmillr/noble-hashes) | MIT |
 | [`@octokit/webhooks`](https://github.com/octokit/webhooks.js) | MIT |
 | [`@openai/codex`](https://github.com/openai/codex) | Apache-2.0 |
+| [`@opencode2dsh/dsh-plugin`](https://github.com/FishBottle7/opencode2dsh) | MIT |
 | [`@opentelemetry/api`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@opentelemetry/api-logs`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@opentelemetry/core`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
