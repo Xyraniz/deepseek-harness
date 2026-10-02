@@ -1,11 +1,7 @@
-/**
- * The web-search provider's settings page: its endpoint, its per-request
- * search budget, and the key — which is written through the credentials
- * domain, never into the settings section, so the literal never rides a response.
- */
+/** The search-provider choice and its write-only API key. */
 
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
-import { SettingsForm, SettingsSecretField, SettingsValueField } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SettingsChoiceField, SettingsForm, SettingsSecretField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { formLabels } from './locales.ts'
 import type { WebSearchCardFace } from './web-search-card-controller.ts'
@@ -28,44 +24,32 @@ export function WebSearchCard(props: WebSearchCardProps) {
   const disabled = !state.writable
   return (
     <SettingsForm labels={formLabels(t)} state={state} onSave={props.save} onDiscard={props.discard}>
+      <SettingsChoiceField
+        id="plugin-config-web-search-provider"
+        label={t('provider')}
+        hint={t('providerHint')}
+        overriddenLabel={t('overridden')}
+        resetLabel={t('reset')}
+        invalidLabel={t('invalidSelection')}
+        disabled={disabled}
+        {...state.searchProvider}
+        text={state.searchProvider.text || 'exa'}
+        choices={[
+          { value: 'exa', label: t('exa') },
+          { value: 'parallel', label: t('parallel') },
+        ]}
+        onEdit={(text) => { props.edit('searchProvider', text) }}
+        onReset={() => { props.resetField('searchProvider') }}
+      />
       <SettingsSecretField
         id="plugin-config-web-search-key"
-        label={t('apiKey')}
+        label={state.provider === 'exa' ? t('exaApiKey') : t('parallelApiKey')}
         hint={t('apiKeyHint')}
-        // The credentials domain accepts a key even when the settings document
-        // itself is read-only; they are separate stores with separate refusals.
-        // Its own writability is what disables this control — a key sourced
-        // from the process environment cannot be written from here.
         disabled={!state.apiKeyWritable}
         text={state.apiKey.text}
         configured={state.apiKeyConfigured}
         stateLabel={state.apiKeyConfigured ? t('apiKeySet') : t('apiKeyUnset')}
         onEdit={(text) => { props.edit('apiKey', text) }}
-      />
-      <SettingsValueField
-        id="plugin-config-web-search-endpoint"
-        label={t('baseUrl')}
-        hint={t('baseUrlHint')}
-        overriddenLabel={t('overridden')}
-        resetLabel={t('reset')}
-        invalidLabel={t('invalidNumber')}
-        disabled={disabled}
-        {...state.baseURL}
-        onEdit={(text) => { props.edit('baseURL', text) }}
-        onReset={() => { props.resetField('baseURL') }}
-      />
-      <SettingsValueField
-        id="plugin-config-web-search-max-uses"
-        label={t('maxUses')}
-        hint={t('maxUsesHint')}
-        overriddenLabel={t('overridden')}
-        resetLabel={t('reset')}
-        invalidLabel={t('invalidNumber')}
-        numeric
-        disabled={disabled}
-        {...state.maxUses}
-        onEdit={(text) => { props.edit('maxUses', text) }}
-        onReset={() => { props.resetField('maxUses') }}
       />
     </SettingsForm>
   )

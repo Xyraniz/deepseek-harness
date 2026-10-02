@@ -1,5 +1,5 @@
 ---
-description: "The DeepSeek web-search provider's settings page on the dsh web client's Plugins page: its API key, endpoint, and per-request search budget."
+description: "The Web app's Plugins page for selecting Exa or Parallel search and saving its API key in private credentials."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Open **Plugins** in the sidebar and select **Web search** in the Official group to set the provider's key, endpoint, and how many times one request may search. The page stages what is typed and writes it only on save; the key is written through the credentials domain rather than the settings document, so its literal never rides a response. The page exists while the Host serves the `web-search-deepseek` namespace.
+Open **Plugins** in the sidebar and select **Web search** in the Official group. Choose Exa or Parallel, paste that provider's API key, then save. The password field starts blank and reports only whether a key is configured; leaving it blank keeps the current key. The key is written through the private credentials domain rather than the settings document, so its literal never rides a response. The page exists while the Host serves the `web` namespace.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ Open **Plugins** in the sidebar and select **Web search** in the Official group 
 <a id="use-this-package"></a>
 ## Use this package
 
-The **Web search** card in the Official group opens the page. **API key** starts blank on every load and reports only whether a key is configured; without one, it says that only conversations using a DeepSeek Account model can search, through the default endpoint, because those searches authenticate with the account sign-in; a blank draft keeps the stored key, and the control is disabled when the credential cannot be written from here, such as a key the process environment supplies. **Endpoint** and **Max searches per request** render the effective value, carry an **Overridden** badge with **Reset to default** once overridden, and save as a reset when emptied. Nothing is written until **Save**; leaving the page drops the drafts.
+The **Web search** card in the Official group offers a provider dropdown and a password textbox for its key. Choose Exa or Parallel, paste the matching key, and press **Save**; a blank password draft keeps the current key. Keys from read-only sources, such as the process environment, show as configured but disable editing. The provider selection is stored in the `web` settings row, while the key goes only through `remote.credentials.set` and `remote.credentials.describe` returns only configured/writable metadata. Nothing is written until **Save**; leaving the page drops the drafts.
 
 -----
 
@@ -35,7 +35,7 @@ The **Web search** card in the Official group opens the page. **API key** starts
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host half is an empty `apply`, present only so the package holds a Loader row the client module system serves the browser half for. The browser half binds the `web-search-deepseek` namespace through `ctx.configForms.get` and keeps the staged form in `WebSearchCardController` over the shared `SettingsFormModel` of `ui-primitives`, with the key as the form's one secret control: its write goes to `remote.credentials.set` under the reference the section's `apiKeyEnv` names (`DEEPSEEK_API_KEY` when it names none), and success is read back from `remote.credentials.describe`. The controller re-reads the credential when the scope changes and when the Host reports `credentials/reference-updated` for the watched reference, since a key written on the Models page changes no settings section. The page registers `WebSearchCard` into the Plugins page's `plugins.item` slot through `ctx.configForms.whileServed`.
+The Host half is an empty `apply`, present only so the package holds a Loader row the client module system serves the browser half for. The browser half binds the `web` namespace through `ctx.configForms.get` and stages `searchProvider` with the shared `SettingsFormModel` of `ui-primitives`. Its password textbox is a write-only secret control: the selected provider chooses `EXA_API_KEY` or `PARALLEL_API_KEY`, writes through `remote.credentials.set`, and reads back only metadata through `remote.credentials.describe`. The controller re-reads the credential when the scope changes and when the Host reports `credentials/reference-updated` for the watched reference. Exa and Parallel resolve that stored credential for each search request. The page registers `WebSearchCard` into the Plugins page's `plugins.item` slot through `ctx.configForms.whileServed`.
 
 </details>
 
@@ -48,7 +48,8 @@ The Host half is an empty `apply`, present only so the package holds a Loader ro
 - [ui-settings](../ui-settings/README.md) — the settings scope and the served-namespace watch the page rides.
 - [ui-primitives](../ui-primitives/README.md) — the settings form model and fields the page renders.
 - [credentials](../../credentials/README.md) — the credential-reference seam the key writes through.
-- [web-search-deepseek](../../web/web-search-deepseek/README.md) — the provider that registers the namespace.
+- [web](../../web/web/README.md) — the service that registers the settings namespace.
+- [web-search-exa](../../web/web-search-exa/README.md) and [web-search-parallel](../../web/web-search-parallel/README.md) — the selectable search providers.
 
 -----
 

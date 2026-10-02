@@ -1,214 +1,142 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
-import { RemoteError, stubConfigForm, type StubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
+import {
+  RemoteError, stubConfigForm, type StubConfigForm,
+} from '@deepseek-ai/dsh-client-test-runtime'
 import { WebSearchCardController, type WebSearchSettings } from '../src/client/web-search-card-controller.ts'
 
-/** Make the stub behave like a Host that accepts every write. */
 function acceptWrites<T>(host: StubConfigForm<T>): void {
   const section = (): Record<string, unknown> => ({ ...host.scope.getSnapshot().value as object })
   const layer = (): Record<string, unknown> => ({ ...host.scope.getSnapshot().user as object })
-  host.set.mockImplementation((field: string, value: unknown) => {
-    host.publish({ value: { ...section(), [field]: value } as T, user: { ...layer(), [field]: value } })
-  })
   host.mutate.mockImplementation((ops: readonly SettingsPathOpView[]) => {
     const value = { ...section() }
     const user = { ...layer() }
     for (const op of ops) {
       const field = op.path[0]!
-      if (op.op === 'set') {
-        value[field] = op.value
-        user[field] = op.value
-      } else {
+      if (op.op === 'set') { value[field] = op.value; user[field] = op.value }
+      else {
         Reflect.deleteProperty(user, field)
-        value[field] = (host.scope.getSnapshot().base as Record<string, unknown> | undefined)?.[field]
+        const base = host.scope.getSnapshot().base as Record<string, unknown> | undefined
+        value[field] = base?.[field]
       }
     }
     host.publish({ value: value as T, user })
     return Promise.resolve(true)
   })
-  host.unset.mockImplementation((field: string) => {
-    const user = Object.fromEntries(Object.entries(layer()).filter(([key]) => key !== field))
-    const base = host.scope.getSnapshot().base as Record<string, unknown> | undefined
-    host.publish({ value: { ...section(), [field]: base?.[field] } as T, user })
-  })
 }
 
-/** The card plugin's context, scripted down to the namespaces a card reaches. */
-function ctxWith(namespaces: object) {
-  return { remote: namespaces } as never
-}
-
-function credentialsApi(configured: boolean) {
-  const describe = vi.fn(() => Promise.resolve({
+function credentialsApi(initial: readonly string[] = []) {
+  const configured = new Set(initial)
+  const describe = vi.fn((refs: readonly string[]) => Promise.resolve({
     ok: true as const,
-    value: { DEEPSEEK_API_KEY: { configured, writable: true } },
+    value: Object.fromEntries(refs.map(ref => [ref, { configured: configured.has(ref), writable: true }])),
   }))
-  const set = vi.fn(() => Promise.resolve({ ok: true as const, value: undefined }))
-  return { ctx: ctxWith({ credentials: { describe, set } }), describe, set }
+  const set = vi.fn((ref: string, value: string) => {
+    if (value.trim() !== '') configured.add(ref)
+    return Promise.resolve({ ok: true as const, value: undefined })
+  })
+  return { ctx: { remote: { credentials: { describe, set } } } as never, describe, set }
 }
 
 describe('WebSearchCardController', () => {
-  it('reads the credential state for the reference the tab names', async () => {
+  it('reads the chosen provider key without returning its value', async () => {
     const host = stubConfigForm<WebSearchSettings>()
-    const credentials = credentialsApi(true)
+    const credentials = credentialsApi(['EXA_API_KEY'])
     const controller = new WebSearchCardController(host.scope, credentials.ctx)
-    const state = () => controller.inject().hooks.webSearchCard.getSnapshot()
-    await vi.waitFor(() => { expect(credentials.describe).toHaveBeenCalled() })
+    host.publish({ status: 'ready', writable: true, value: { searchProvider: 'exa' }, user: {} })
 
-    host.publish({ status: 'ready', writable: true, value: { baseURL: 'https://search.test/v1' }, user: {} })
-    await vi.waitFor(() => { expect(state().apiKeyConfigured).toBe(true) })
-
-    expect(state()).toMatchObject({
-      baseURL: { text: 'https://search.test/v1', overridden: false },
+    await vi.waitFor(() => { expect(credentials.describe).toHaveBeenCalledWith(['EXA_API_KEY']) })
+    expect(controller.inject().hooks.webSearchCard.getSnapshot()).toMatchObject({
+      provider: 'exa',
       apiKey: { text: '', overridden: false },
+      apiKeyConfigured: true,
+      apiKeyWritable: true,
     })
   })
 
-  it('writes the staged key through the credentials domain, never the settings section', async () => {
+  it('changes provider and stores the pasted key only in the matching credential reference', async () => {
     const host = stubConfigForm<WebSearchSettings>()
-    const credentials = credentialsApi(false)
+    acceptWrites(host)
+    const credentials = credentialsApi()
     const controller = new WebSearchCardController(host.scope, credentials.ctx)
-    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    host.publish({ status: 'ready', writable: true, revision: 3, value: { searchProvider: 'exa' }, base: { searchProvider: 'exa' }, user: {} })
     const face = controller.inject()
 
-    face.edit('apiKey', ' ds-secret ')
-    expect(face.hooks.webSearchCard.getSnapshot().dirty).toBe(true)
-    expect(credentials.set).not.toHaveBeenCalled()
-
-    credentials.describe.mockImplementation(() => Promise.resolve({
-      ok: true as const,
-      value: { DEEPSEEK_API_KEY: { configured: true, writable: true } },
-    }))
+    face.edit('searchProvider', 'parallel')
+    await vi.waitFor(() => { expect(credentials.describe).toHaveBeenCalledWith(['PARALLEL_API_KEY']) })
+    face.edit('apiKey', ' parallel-secret ')
     face.save()
-    await vi.waitFor(() => { expect(credentials.set).toHaveBeenCalled() })
 
-    expect(credentials.set).toHaveBeenCalledWith('DEEPSEEK_API_KEY', 'ds-secret')
+    await vi.waitFor(() => { expect(credentials.set).toHaveBeenCalledWith('PARALLEL_API_KEY', 'parallel-secret') })
+    await vi.waitFor(() => { expect(face.hooks.webSearchCard.getSnapshot().dirty).toBe(false) })
+    expect(host.mutate).toHaveBeenCalledWith(
+      [{ op: 'set', path: ['searchProvider'], value: 'parallel' }],
+      3,
+    )
     expect(host.set).not.toHaveBeenCalled()
-    await vi.waitFor(() => {
-      expect(face.hooks.webSearchCard.getSnapshot()).toMatchObject({ dirty: false, apiKeyConfigured: true })
-    })
+    expect(face.hooks.webSearchCard.getSnapshot()).toMatchObject({ provider: 'parallel', apiKeyConfigured: true })
   })
 
-  it('keeps the stored key when the draft is left blank', () => {
+  it('keeps the stored key when the draft is blank', () => {
     const host = stubConfigForm<WebSearchSettings>()
-    const credentials = credentialsApi(true)
+    const credentials = credentialsApi(['EXA_API_KEY'])
     const controller = new WebSearchCardController(host.scope, credentials.ctx)
-    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    host.publish({ status: 'ready', writable: true, value: { searchProvider: 'exa' }, user: {} })
     const face = controller.inject()
 
     face.edit('apiKey', '   ')
-
     expect(face.hooks.webSearchCard.getSnapshot().dirty).toBe(false)
     face.save()
-
     expect(credentials.set).not.toHaveBeenCalled()
   })
 
-  it('re-reads when the Host reports the watched reference changed', async () => {
+  it('reacts only to invalidations for the currently selected provider key', async () => {
     const host = stubConfigForm<WebSearchSettings>()
-    const credentials = credentialsApi(false)
+    const credentials = credentialsApi()
     const controller = new WebSearchCardController(host.scope, credentials.ctx)
-    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
-    await vi.waitFor(() => { expect(credentials.describe).toHaveBeenCalled() })
+    const face = controller.inject()
+    await vi.waitFor(() => { expect(credentials.describe).toHaveBeenCalledWith(['EXA_API_KEY']) })
     credentials.describe.mockClear()
 
-    // Another reference is not this card's business.
-    controller.refreshCredential('OTHER_KEY')
+    controller.refreshCredential('PARALLEL_API_KEY')
     expect(credentials.describe).not.toHaveBeenCalled()
+    controller.refreshCredential('EXA_API_KEY')
+    await vi.waitFor(() => { expect(credentials.describe).toHaveBeenCalledWith(['EXA_API_KEY']) })
+    expect(face.hooks.webSearchCard.getSnapshot().apiKeyConfigured).toBe(false)
+  })
 
-    // A key written on another surface reaches this card only through this signal.
-    credentials.describe.mockImplementation(() => Promise.resolve({
+  it('keeps the key control usable when settings are read-only', () => {
+    const host = stubConfigForm<WebSearchSettings>()
+    const credentials = credentialsApi()
+    const controller = new WebSearchCardController(host.scope, credentials.ctx)
+    host.publish({ status: 'ready', writable: false, value: { searchProvider: 'exa' }, user: {} })
+
+    expect(controller.inject().hooks.webSearchCard.getSnapshot()).toMatchObject({ writable: false, apiKeyWritable: true })
+  })
+
+  it('disables a key supplied by a read-only source', async () => {
+    const host = stubConfigForm<WebSearchSettings>()
+    const credentials = credentialsApi()
+    credentials.describe.mockImplementation((refs: readonly string[]) => Promise.resolve({
       ok: true as const,
-      value: { DEEPSEEK_API_KEY: { configured: true, writable: true } },
+      value: Object.fromEntries(refs.map(ref => [ref, { configured: true, writable: false }])),
     }))
-    controller.refreshCredential('DEEPSEEK_API_KEY')
-
-    await vi.waitFor(() => {
-      expect(controller.inject().hooks.webSearchCard.getSnapshot().apiKeyConfigured).toBe(true)
-    })
-  })
-
-  it('addresses the reference the tab declares rather than the default', async () => {
-    const host = stubConfigForm<WebSearchSettings>()
-    const credentials = credentialsApi(false)
     const controller = new WebSearchCardController(host.scope, credentials.ctx)
-    host.publish({ status: 'ready', writable: true, value: { apiKeyEnv: 'SEARCH_KEY' }, user: {} })
-    const face = controller.inject()
 
-    face.edit('apiKey', 'ds-secret')
-    face.save()
-    await vi.waitFor(() => { expect(credentials.set).toHaveBeenCalled() })
-
-    expect(credentials.set).toHaveBeenCalledWith('SEARCH_KEY', 'ds-secret')
+    await vi.waitFor(() => { expect(controller.inject().hooks.webSearchCard.getSnapshot().apiKeyWritable).toBe(false) })
   })
 
-  it('reports a key the Host did not store as a failed save', async () => {
-    const host = stubConfigForm<WebSearchSettings>()
-    const credentials = credentialsApi(false)
-    const controller = new WebSearchCardController(host.scope, credentials.ctx)
-    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
-    const face = controller.inject()
-
-    face.edit('apiKey', 'ds-secret')
-    face.save()
-
-    await vi.waitFor(() => {
-      expect(face.hooks.webSearchCard.getSnapshot()).toMatchObject({ failed: true, dirty: true })
-    })
-  })
-
-  it('keeps the card usable when the credential read is refused', async () => {
+  it('keeps the card usable when the credential service refuses the read', async () => {
     const host = stubConfigForm<WebSearchSettings>()
     const refusal = () => Promise.resolve({
       ok: false as const,
-      error: new RemoteError('credential/rejected', 'offline', { ref: 'DEEPSEEK_API_KEY' }),
+      error: new RemoteError('credential/rejected', 'offline', { ref: 'EXA_API_KEY' }),
     })
-    const describe = vi.fn(refusal)
-    const set = vi.fn(refusal)
-    const controller = new WebSearchCardController(host.scope, ctxWith({ credentials: { describe, set } }))
-    const face = controller.inject()
-    await vi.waitFor(() => { expect(describe).toHaveBeenCalled() })
+    const controller = new WebSearchCardController(host.scope, {
+      remote: { credentials: { describe: vi.fn(refusal), set: vi.fn(refusal) } },
+    } as never)
+    host.publish({ status: 'ready', writable: true, value: { searchProvider: 'exa' }, user: {} })
 
-    host.publish({ status: 'ready', writable: true, value: { baseURL: 'https://search.test/v1' }, user: {} })
-    face.edit('apiKey', 'ds-secret')
-    face.save()
-    await vi.waitFor(() => { expect(set).toHaveBeenCalled() })
-
-    expect(face.hooks.webSearchCard.getSnapshot()).toMatchObject({
-      available: true,
-      apiKeyConfigured: false,
-      baseURL: { text: 'https://search.test/v1' },
-    })
-  })
-
-  it('ignores a credential read the Host refused', async () => {
-    const host = stubConfigForm<WebSearchSettings>()
-    const describe = vi.fn(() => Promise.resolve({
-      ok: false as const,
-      error: new RemoteError('gateway/internal', 'no credential provider', {}),
-    }))
-    const controller = new WebSearchCardController(host.scope, ctxWith({
-      credentials: { describe, set: vi.fn() },
-    }))
-    await vi.waitFor(() => { expect(describe).toHaveBeenCalled() })
-
-    expect(controller.inject().hooks.webSearchCard.getSnapshot().apiKeyConfigured).toBe(false)
-  })
-
-  it('saves the endpoint and the search budget together', async () => {
-    const host = stubConfigForm<WebSearchSettings>()
-    acceptWrites(host)
-    const credentials = credentialsApi(true)
-    const controller = new WebSearchCardController(host.scope, credentials.ctx)
-    host.publish({ status: 'ready', writable: true, value: {}, base: {}, user: {} })
-    const face = controller.inject()
-
-    face.edit('baseURL', 'https://other.test')
-    face.edit('maxUses', '3')
-    face.save()
-    await vi.waitFor(() => { expect(host.mutate).toHaveBeenCalledTimes(1) })
-
-    expect(host.mutate.mock.calls.map(([ops]) => ops)).toEqual([[['baseURL', 'https://other.test'], ['maxUses', 3]].map(([field, value]) => ({ op: 'set', path: [field], value }))])
-    expect(credentials.set).not.toHaveBeenCalled()
+    await vi.waitFor(() => { expect(controller.inject().hooks.webSearchCard.getSnapshot().available).toBe(true) })
   })
 })

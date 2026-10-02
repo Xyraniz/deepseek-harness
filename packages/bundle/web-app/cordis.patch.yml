@@ -39,6 +39,14 @@
 
 # ── web-only host rows, the transport layer, and the browser roster ─────────
 
+# Keep provider selection in the Web profile's editable settings namespace.
+# The base owns the defaults for other products; this explicit Web layer makes
+# the host-level provider choice available to the Plugins page.
+- id: web
+  config:
+    searchProvider: exa
+    fetchProvider: http
+
 # `dsh.client` rows are the browser roster the modules node half scans into
 # window.__DSH_BOOT__; the modules row is simultaneously a host row.
 - insert:

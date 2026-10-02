@@ -12,6 +12,7 @@ import { chromium } from 'playwright'
 import { OPTIONAL_BUNDLES } from '@deepseek-ai/dsh-app-boot'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
 import { join } from 'node:path'
+import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold,
@@ -22,6 +23,7 @@ const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/plugin-config', import.me
 const OFFICIAL_EXPECTED = join(SNAPSHOT_DIR, 'official.expected.md')
 const ROW_EXPECTED = join(SNAPSHOT_DIR, 'row.expected.md')
 const BUNDLE_EXPECTED = join(SNAPSHOT_DIR, 'bundle.expected.md')
+const WEB_SEARCH_EXPECTED = join(SNAPSHOT_DIR, 'web-search.expected.md')
 const FIXTURE_PLUGINS = fileURLToPath(new URL('./fixtures/plugins', import.meta.url))
 const MODE = webSnapshotMode()
 
@@ -30,8 +32,13 @@ describe('web e2e: plugin configuration pages', () => {
   let browser: Browser
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
+  const inheritedExaApiKey = process.env.EXA_API_KEY
+  const inheritedParallelApiKey = process.env.PARALLEL_API_KEY
 
   beforeAll(async () => {
+    // Keep process keys from shadowing the key this browser test saves.
+    process.env.EXA_API_KEY = ''
+    process.env.PARALLEL_API_KEY = ''
     // The live-client fixture is a bundle with a browser half; switched on
     // below, that half registers its row's configuration into the page.
     scaffold = await launchWebScaffold({
@@ -50,6 +57,10 @@ describe('web e2e: plugin configuration pages', () => {
   afterAll(async () => {
     await browser?.close()
     await scaffold?.close()
+    if (inheritedExaApiKey === undefined) delete process.env.EXA_API_KEY
+    else process.env.EXA_API_KEY = inheritedExaApiKey
+    if (inheritedParallelApiKey === undefined) delete process.env.PARALLEL_API_KEY
+    else process.env.PARALLEL_API_KEY = inheritedParallelApiKey
   })
 
   /**
@@ -86,9 +97,10 @@ describe('web e2e: plugin configuration pages', () => {
   it('lists one official page per exposed host-plane namespace after the official bundles', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-cards'))
     const panel = await openPlugins()
+    expect(scaffold.ctx.settings.describe().some(row => row.ns === 'web')).toBe(true)
 
     // Every page the shipped web composition exposes: the shell executor, the
-    // agent loop, subagent selection, and the DeepSeek search provider, after
+    // agent loop, subagent selection, and web search provider selection, after
     // the official bundles the installation ships switched off.
     await panel.getByRole('button', { name: '查看 网页搜索', exact: true }).waitFor({ timeout: 20_000 })
     const official = panel.locator('[data-plugin-group="official"]')
@@ -103,6 +115,35 @@ describe('web e2e: plugin configuration pages', () => {
 
     const snapshot = await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(OFFICIAL_EXPECTED, snapshot, MODE)
+    expect(tripwire.pageErrors).toEqual([])
+  }, 60_000)
+
+  it('chooses Parallel and saves its key to private credentials', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-web-search'))
+    const panel = await openPlugins()
+    await openPage(panel, '网页搜索')
+
+    const provider = panel.getByLabel('搜索提供方', { exact: true })
+    await expect.poll(() => provider.inputValue()).toBe('exa')
+    await provider.selectOption('parallel')
+    const apiKey = panel.getByLabel('Parallel API Key', { exact: true })
+    await apiKey.fill('parallel-browser-test-key')
+    await panel.getByRole('button', { name: '保存', exact: true }).click()
+    await expect.poll(() => panel.getByRole('button', { name: '保存', exact: true }).isDisabled()).toBe(true)
+
+    expect(await settingsDocument()).toContain('searchProvider: parallel')
+    expect(await settingsDocument()).not.toContain('parallel-browser-test-key')
+    await expect.poll(async () => (await scaffold.ctx.credentials.resolve(credentialRef('PARALLEL_API_KEY')))?.value)
+      .toBe('parallel-browser-test-key')
+    expect(await apiKey.inputValue()).toBe('')
+    expect(await panel.getByText('已配置密钥。', { exact: true }).count()).toBe(1)
+
+    const snapshot = await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd)
+    await compareOrRefreshGolden(WEB_SEARCH_EXPECTED, snapshot, MODE)
+
+    await panel.getByRole('button', { name: '恢复默认', exact: true }).click()
+    await panel.getByRole('button', { name: '保存', exact: true }).click()
+    await expect.poll(async () => (await settingsDocument()).includes('searchProvider:')).toBe(false)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
@@ -209,7 +250,7 @@ describe('web e2e: plugin configuration pages', () => {
     const timeout = panel.getByLabel('命令超时（毫秒）')
     await timeout.waitFor({ timeout: 10_000 })
     // The composed default this deployment ships, before any user layer.
-    expect(await timeout.inputValue()).toBe('60000')
+    expect(await timeout.inputValue()).toBe('120000')
     await timeout.fill('12000')
     await timeout.blur()
 
@@ -276,14 +317,14 @@ describe('web e2e: plugin configuration pages', () => {
     // The reset stages the composed default; the document still carries the
     // override until the save lands.
     await panel.getByRole('button', { name: '恢复默认' }).click()
-    await expect.poll(() => timeout.inputValue(), { timeout: 5_000 }).toBe('60000')
+    await expect.poll(() => timeout.inputValue(), { timeout: 5_000 }).toBe('120000')
     expect(await settingsDocument()).toContain('timeoutMs: 12000')
 
     await panel.getByRole('button', { name: '保存', exact: true }).click()
 
     await expect.poll(async () => (await settingsDocument()).includes('timeoutMs'), { timeout: 10_000 })
       .toBe(false)
-    expect(await timeout.inputValue()).toBe('60000')
+    expect(await timeout.inputValue()).toBe('120000')
     expect(await panel.getByText('已覆盖').count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
@@ -349,7 +390,7 @@ describe('web e2e: plugin configuration pages', () => {
 
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
     expect(tripwire.warnings).toEqual([])
-    await assertFixtureInventory(SNAPSHOT_DIR, ['bundle.expected.md', 'official.expected.md', 'row.expected.md', 'subagent.expected.md'])
+    await assertFixtureInventory(SNAPSHOT_DIR, ['bundle.expected.md', 'official.expected.md', 'row.expected.md', 'subagent.expected.md', 'web-search.expected.md'])
   })
 
 

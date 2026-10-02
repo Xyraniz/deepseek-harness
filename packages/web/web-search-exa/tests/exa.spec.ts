@@ -11,6 +11,10 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' }, ...init })
 }
 
+function provideCredentials(ctx: Context): void {
+  ctx.provide('credentials', { resolve: vi.fn(async () => undefined) } as never)
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -138,6 +142,19 @@ describe('ExaSearchProvider request mapping', () => {
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(init.signal).toBe(controller.signal)
   })
+
+  it('resolves the current managed key for each request', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+    const resolver = vi.fn(async () => 'stored-key')
+    const provider = new ExaSearchProvider({ ...options, apiKey: '', resolveApiKey: resolver })
+
+    await provider.search({ query: 'q' })
+
+    expect(resolver).toHaveBeenCalledOnce()
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(init.headers).toMatchObject({ authorization: 'Bearer stored-key' })
+  })
 })
 
 describe('ExaSearchProvider error handling', () => {
@@ -202,6 +219,7 @@ describe('web-search-exa plugin registration', () => {
   it('registers the provider into ctx.web (HMR-safe)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ results: [] })))
     const ctx = new Context()
+    provideCredentials(ctx)
     await ctx.plugin(WebRuntime, { searchProvider: EXA_PROVIDER_ID })
     const fiber = await ctx.plugin(exaPlugin, { apiKey: 'exa-key' })
     await expect(ctx.web.search({ query: 'q' })).resolves.toMatchObject({ sources: [], truncated: false })
@@ -218,6 +236,7 @@ describe('web-search-exa plugin registration', () => {
     const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new Context()
+    provideCredentials(ctx)
     await ctx.plugin(WebRuntime, { searchProvider: EXA_PROVIDER_ID })
     const fiber = await ctx.plugin(exaPlugin, { apiKey: 'exa-key', searchType: 'keyword', highlightsPerResult: 2, numResults: 9 })
     await ctx.web.search({ query: 'q' })
@@ -233,6 +252,7 @@ describe('web-search-exa plugin registration', () => {
       const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
       vi.stubGlobal('fetch', fetchMock)
       const ctx = new Context()
+      provideCredentials(ctx)
       await ctx.plugin(WebRuntime, { searchProvider: EXA_PROVIDER_ID })
       const fiber = await ctx.plugin(exaPlugin, {})
       await ctx.web.search({ query: 'q' })
@@ -245,11 +265,28 @@ describe('web-search-exa plugin registration', () => {
     }
   })
 
+  it('resolves a key entered in the credentials store on the next search', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ results: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new Context()
+    ctx.provide('credentials', {
+      resolve: vi.fn(async () => ({ value: 'stored-key', source: 'file' as const })),
+    } as never)
+    await ctx.plugin(WebRuntime, { searchProvider: EXA_PROVIDER_ID })
+    await ctx.plugin(exaPlugin, {})
+
+    await ctx.web.search({ query: 'q' })
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(init.headers).toMatchObject({ authorization: 'Bearer stored-key' })
+  })
+
   it('is unavailable when neither config nor env supplies a key', async () => {
     const prev = process.env.EXA_API_KEY
     delete process.env.EXA_API_KEY
     try {
       const ctx = new Context()
+      provideCredentials(ctx)
       await ctx.plugin(WebRuntime, { searchProvider: EXA_PROVIDER_ID })
       await ctx.plugin(exaPlugin, {})
       await expect(ctx.web.search({ query: 'q' }))

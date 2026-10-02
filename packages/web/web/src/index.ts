@@ -6,7 +6,7 @@
  * @module @deepseek-ai/dsh-web
  */
 
-import { Context, Service } from '@deepseek-ai/cordis'
+import { Context, Service, type Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {
   WebFetchProvider,
@@ -53,8 +53,8 @@ interface Selection<P> {
  * must feed these same fields rather than introduce a hidden priority chain.
  */
 export interface WebRuntimeConfig {
-  /** Explicit search provider id. Omitted = auto-select when exactly one usable. */
-  readonly searchProvider?: string
+  /** Explicit search provider id. Live selection keeps its stable config reference. */
+  readonly searchProvider?: Volatile<string | undefined>
   /** Explicit fetch provider id. Omitted = auto-select when exactly one usable. */
   readonly fetchProvider?: string
 }
@@ -77,19 +77,19 @@ export class WebRuntime extends Service {
    * `$DSH_WEB_SEARCH_PROVIDER` / `$DSH_WEB_FETCH_PROVIDER` are equivalent to
    * `searchProvider` / `fetchProvider` and are NOT a hidden priority chain.
    */
-  static Config: z<WebRuntimeConfig> = z.object({
-    searchProvider: z.string(),
+  static Config = z.object({
+    searchProvider: z.string().volatile(),
     fetchProvider: z.string(),
   })
 
   private searchProviders = new Map<string, WebSearchProvider>()
   private fetchProviders = new Map<string, WebFetchProvider>()
-  private readonly searchProviderId: string | undefined
+  private readonly searchProviderId: string | Volatile<string | undefined> | undefined
   private readonly fetchProviderId: string | undefined
 
   constructor(ctx: Context, config: WebRuntimeConfig = {}) {
     super(ctx, 'web')
-    this.searchProviderId = config.searchProvider ?? process.env.DSH_WEB_SEARCH_PROVIDER
+    this.searchProviderId = config.searchProvider
     this.fetchProviderId = config.fetchProvider ?? process.env.DSH_WEB_FETCH_PROVIDER
   }
 
@@ -138,9 +138,13 @@ export class WebRuntime extends Service {
    * @returns the provider's results, capped to `request.maxResults`.
    */
   async search(request: WebSearchRequest, signal?: AbortSignal): Promise<WebSearchResult> {
+    const configuredId = typeof this.searchProviderId === 'string'
+      ? this.searchProviderId
+      : this.searchProviderId?.get()
+    const selectedId = configuredId ?? process.env.DSH_WEB_SEARCH_PROVIDER
     const provider = resolveProvider({
       providers: this.searchProviders,
-      ...this.searchProviderId !== undefined ? { configuredId: this.searchProviderId } : {},
+      ...(selectedId === undefined ? {} : { configuredId: selectedId }),
     })
     const result = await provider.search(request, signal)
     return capSources(result, request.maxResults)

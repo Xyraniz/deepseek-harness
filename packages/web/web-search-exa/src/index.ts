@@ -6,6 +6,8 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import type {} from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-web'
@@ -28,8 +30,8 @@ export type { ExaSearchProviderOptions } from './provider.ts'
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'web-search-exa'
 
-/** The web seam this provider registers into. */
-export const inject = ['web']
+/** The web and credential services this provider uses. */
+export const inject = ['web', 'credentials']
 
 /** Plugin config (all optional — `apply` fills env-var and constant defaults). */
 export interface Config {
@@ -55,10 +57,13 @@ export const Config: z<Config> = z.object({
 
 /** Register the Exa search provider with `ctx.web`. */
 export function apply(ctx: Context, config: Config): void {
+  const credentials = ctx.get('credentials')
+  const apiKey = config.apiKey ?? launchEnvironmentOf(ctx).get('EXA_API_KEY')?.value ?? ''
   ctx.web.registerSearchProvider(new ExaSearchProvider({
-    // Every environment layer may name this key: the product trusts the
-    // project it is launched in, and the managed store is not involved here.
-    apiKey: config.apiKey ?? launchEnvironmentOf(ctx).get('EXA_API_KEY')?.value ?? '',
+    // Resolve managed credentials per call so a key saved in Plugins settings
+    // reaches the next search without putting its value into configuration.
+    apiKey,
+    resolveApiKey: async () => (await credentials?.resolve(credentialRef('EXA_API_KEY')))?.value,
     baseURL: config.baseURL ?? EXA_DEFAULT_BASE_URL,
     searchType: config.searchType ?? EXA_DEFAULT_SEARCH_TYPE,
     highlightsPerResult: config.highlightsPerResult ?? EXA_DEFAULT_HIGHLIGHTS_PER_RESULT,

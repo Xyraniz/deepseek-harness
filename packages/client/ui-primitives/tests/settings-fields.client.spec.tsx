@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SettingsSecretField, SettingsValueField } from '../src/settings-form/fields.tsx'
+import { SettingsChoiceField, SettingsSecretField, SettingsValueField } from '../src/settings-form/fields.tsx'
 
 afterEach(cleanup)
 
@@ -79,6 +79,48 @@ describe('SettingsValueField', () => {
 
     expect(screen.getByLabelText('Command timeout')).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Reset to default' })).toHaveProperty('disabled', true)
+  })
+})
+
+describe('SettingsChoiceField', () => {
+  it('stages a selected value and renders its localized choices', () => {
+    const onEdit = vi.fn()
+    render(
+      <SettingsChoiceField
+        {...frame}
+        text="exa"
+        onEdit={onEdit}
+        onReset={vi.fn()}
+        choices={[{ value: 'exa', label: 'Exa' }, { value: 'parallel', label: 'Parallel' }]}
+      />,
+    )
+
+    fireEvent.change(screen.getByLabelText('Command timeout'), { target: { value: 'parallel' } })
+
+    expect(screen.getByRole('option', { name: 'Exa' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Parallel' })).toBeTruthy()
+    expect(onEdit).toHaveBeenCalledWith('parallel')
+  })
+
+  it('offers reset for a user override and disables the select in read-only state', () => {
+    const onReset = vi.fn()
+    render(
+      <SettingsChoiceField
+        {...frame}
+        text="parallel"
+        overridden
+        disabled
+        onEdit={vi.fn()}
+        onReset={onReset}
+        choices={[{ value: 'exa', label: 'Exa' }, { value: 'parallel', label: 'Parallel' }]}
+      />,
+    )
+
+    expect(screen.getByLabelText('Command timeout')).toHaveProperty('disabled', true)
+    const reset = screen.getByRole('button', { name: 'Reset to default' })
+    expect(reset).toHaveProperty('disabled', true)
+    fireEvent.click(reset)
+    expect(onReset).not.toHaveBeenCalled()
   })
 })
 

@@ -33,7 +33,7 @@
     - text: 设置子智能体的递归层级、数量和模型。
   - listitem:
     - button "查看 网页搜索": 网页搜索
-    - text: 设置 DeepSeek 的搜索提供方。
+    - text: 选择 Exa 或 Parallel 并保存对应的 API Key。
 - heading "已安装" [level=3]
 - text: "2"
 - list:

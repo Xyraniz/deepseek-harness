@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-web-search",
-  "description": "Settings page of the DeepSeek web-search provider on the dsh web client's Plugins page: its API key, endpoint, and per-request search budget",
+  "description": "Web client's Plugins page for selecting Exa or Parallel search and saving its API key in private credentials",
   "version": "0.2.0-rc.2",
   "publishConfig": {
     "access": "public"

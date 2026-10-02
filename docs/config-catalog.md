@@ -4100,6 +4100,7 @@ export type ApprovalPolicy = 'ask' | 'never'
 
 ## `@deepseek-ai/dsh-web`
 
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
 - `source`: [`packages/web/web/src/index.ts:55`](../packages/web/web/src/index.ts)
 
 ```ts config-catalog
@@ -4110,8 +4111,8 @@ export type ApprovalPolicy = 'ask' | 'never'
  * must feed these same fields rather than introduce a hidden priority chain.
  */
 export interface WebRuntimeConfig {
-  /** Explicit search provider id. Omitted = auto-select when exactly one usable. */
-  readonly searchProvider?: string
+  /** Explicit search provider id. Live selection keeps its stable config reference. */
+  readonly searchProvider?: Volatile<string | undefined>
   /** Explicit fetch provider id. Omitted = auto-select when exactly one usable. */
   readonly fetchProvider?: string
 }
@@ -4208,8 +4209,8 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-web-search-exa`
 
-- `inject`: `web`
-- `source`: [`packages/web/web-search-exa/src/index.ts:35`](../packages/web/web-search-exa/src/index.ts)
+- `inject`: `web` · `credentials`
+- `source`: [`packages/web/web-search-exa/src/index.ts:37`](../packages/web/web-search-exa/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config (all optional — `apply` fills env-var and constant defaults). */
@@ -4227,6 +4228,27 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-web-search-exa -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-web-search-parallel -->
+<a id="deepseek-aidsh-web-search-parallel"></a>
+
+## `@deepseek-ai/dsh-web-search-parallel`
+
+- `inject`: `web` · `credentials`
+- `source`: [`packages/web/web-search-parallel/src/index.ts:30`](../packages/web/web-search-parallel/src/index.ts)
+
+```ts config-catalog
+/** Optional provider configuration; `apply` supplies env and constant defaults. */
+export interface Config {
+  /** Parallel API key, otherwise resolved from the credentials service or `$PARALLEL_API_KEY`. */
+  apiKey?: string
+  /** API base; `/search` is appended. */
+  baseURL?: string
+  /** Retrieval mode. Defaults to Parallel's fast interactive mode. */
+  mode?: 'turbo' | 'fast' | 'basic' | 'advanced'
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-web-search-parallel -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-web-search-perplexity -->
 <a id="deepseek-aidsh-web-search-perplexity"></a>

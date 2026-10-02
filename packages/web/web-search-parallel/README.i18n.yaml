@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/web/web-search-parallel/README.md
+/:
+  en: 576bc0c811339dad
+  zh: 7f68014187d8f8aa
+/deepseek-ai-dsh-web-search-parallel:
+  en: c9b880c8be83e7d6
+  zh: ff35b9bc66f6ce22
+/deepseek-ai-dsh-web-search-parallel/summary:
+  en: 57c1c6745c7cbcb0
+  zh: b529a3fd6d0dd0e8
+/deepseek-ai-dsh-web-search-parallel/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-web-search-parallel/use-this-package:
+  en: e6d53e72a03b82e4
+  zh: 9f0075190f0ea5f4
+/deepseek-ai-dsh-web-search-parallel/understand-the-implementation:
+  en: 3506fc2aab94556a
+  zh: eb6d0fdedad16460
+/deepseek-ai-dsh-web-search-parallel/further-exploration:
+  en: 216ed6d213cc91ea
+  zh: 5f171a9a7c84ae60
+/deepseek-ai-dsh-web-search-parallel/model-experience:
+  en: de6a2501f1f2bae9
+  zh: 5a5f3ea583b0e334
+/deepseek-ai-dsh-web-search-parallel/known-limitations-and-deferred-work:
+  en: 8135ac99eb30cd27
+  zh: f22241f6a5540a9e
+/deepseek-ai-dsh-web-search-parallel/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

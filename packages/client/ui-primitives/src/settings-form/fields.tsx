@@ -114,6 +114,49 @@ export function SettingsValueField(props: Omit<SettingsFieldProps, 'hint'> & {
   )
 }
 
+/** A staged selection field that shares the settings form's labels and reset state.
+ * @param props - the field copy, selected text, and available choices.
+ * @returns the labelled select control.
+ */
+export function SettingsChoiceField(props: SettingsFieldProps & {
+  /** Available values and their localized labels. */
+  choices: readonly { value: string; label: string }[]
+}) {
+  const messageId = `${props.id}-message`
+  const hasMessage = props.invalid || Boolean(props.hint)
+  return (
+    <div className={css.field}>
+      <div className={css.head}>
+        <label className={css.label} htmlFor={props.id}>{props.label}</label>
+        {props.overridden
+          ? (
+            <span className={css.badges}>
+              <Tag tone="neutral">{props.overriddenLabel}</Tag>
+              <button type="button" className={css.reset} disabled={props.disabled} onClick={props.onReset}>
+                {props.resetLabel}
+              </button>
+            </span>
+          )
+          : null}
+      </div>
+      <select
+        id={props.id}
+        className={css.input}
+        value={props.text}
+        disabled={props.disabled}
+        {...props.invalid ? { 'aria-invalid': true } : {}}
+        aria-describedby={hasMessage ? messageId : undefined}
+        onChange={(event) => { props.onEdit(event.target.value) }}
+      >
+        {props.choices.map(choice => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+      </select>
+      {hasMessage
+        ? <p id={messageId} className={props.invalid ? css.invalid : css.hint}>{props.invalid ? props.invalidLabel : props.hint}</p>
+        : null}
+    </div>
+  )
+}
+
 /**
  * A write-only credential control. The value never rides a response, so the
  * control reports only whether one is configured and starts blank; a blank

@@ -544,6 +544,7 @@
       "@deepseek-ai/dsh-web-fetch-http": ["./packages/web/web-fetch-http/src"],
       "@deepseek-ai/dsh-web-search-deepseek": ["./packages/web/web-search-deepseek/src"],
       "@deepseek-ai/dsh-web-search-exa": ["./packages/web/web-search-exa/src"],
+      "@deepseek-ai/dsh-web-search-parallel": ["./packages/web/web-search-parallel/src"],
       "@deepseek-ai/dsh-web-search-perplexity": ["./packages/web/web-search-perplexity/src"],
       "@deepseek-ai/dsh-webhook": ["./packages/webhook/webhook/src"],
       "@deepseek-ai/dsh-webhook/invariant": ["./packages/webhook/webhook/src/invariant.ts"],

@@ -34,6 +34,8 @@ const USER_AGENT = 'deepseek-harness/0.0.1'
 export interface ExaSearchProviderOptions {
   /** Exa API key. Empty/absent makes the provider unavailable. */
   apiKey: string
+  /** Resolve the current managed credential at search time, when the credentials service is loaded. */
+  resolveApiKey?: () => Promise<string | undefined>
   /** Endpoint base; `/search` is appended. */
   baseURL: string
   /** Retrieval mode sent as Exa's `type`. */
@@ -87,13 +89,22 @@ export class ExaSearchProvider implements WebSearchProvider {
   constructor(private readonly options: ExaSearchProviderOptions) {}
 
   available(): boolean {
-    return this.options.apiKey.length > 0
+    return (this.options.apiKey.length > 0 || this.options.resolveApiKey !== undefined)
       && isValidBaseUrl(this.options.baseURL)
       && isPositiveInteger(this.options.highlightsPerResult)
       && (this.options.numResults === undefined || isPositiveInteger(this.options.numResults))
   }
 
   async search(request: WebSearchRequest, signal?: AbortSignal): Promise<WebSearchResult> {
+    let apiKey = this.options.apiKey
+    try {
+      apiKey = await this.options.resolveApiKey?.() ?? apiKey
+    } catch (error: unknown) {
+      throw new WebError(`Exa credential lookup failed: ${String(error)}`, 'WEB_PROVIDER_ERROR', { cause: error })
+    }
+    if (apiKey.length === 0) {
+      throw new WebError('Exa API key is not configured; save EXA_API_KEY in Plugins settings or the launch environment', 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE')
+    }
     // A per-request bound wins over the configured default; either may be absent.
     const numResults = request.maxResults ?? this.options.numResults
     let response: Response
@@ -102,7 +113,7 @@ export class ExaSearchProvider implements WebSearchProvider {
         method: 'POST',
         redirect: 'error',
         headers: {
-          'authorization': `Bearer ${this.options.apiKey}`,
+          'authorization': `Bearer ${apiKey}`,
           'content-type': 'application/json',
           'accept': 'application/json',
           'user-agent': USER_AGENT,

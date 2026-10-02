@@ -465,27 +465,24 @@
         thresholds: [3, 5, 8]
         argumentsPreviewChars: 500
 
-    # The shared base enables the stable model-facing web_search and web_fetch
-    # tools. The Web app disables this host row and composes both tools per agent
-    # preset; products with a stricter network policy override tool-web. DeepSeek
-    # search resolves the same DEEPSEEK_API_KEY
-    # credential the Models page manages for chat, at each search; its Messages
-    # endpoint is configured independently from the model route, so it takes its own
-    # base-URL override. Anonymous fetch accepts only public HTTP(S) destinations,
-    # resolves and validates every destination, and pins every actual connection.
-    # Search is a full auxiliary model request with server-side retrieval, so this
-    # shipped DeepSeek route gets 60s while the provider-neutral tool default
-    # remains 30s.
+    # The shared base enables Exa and Parallel as selectable implementations for
+    # the stable model-facing web_search tool, with Exa selected by default. Their
+    # API keys are stored in the private credentials file through the Plugins
+    # page or supplied in the launch environment. The Web app disables this host
+    # tool row and composes both tools per agent preset; products with stricter
+    # network policy override tool-web. Anonymous fetch accepts public HTTP(S)
+    # destinations only, validates each address, and pins every connection.
     - id: web
       name: '@deepseek-ai/dsh-web'
       config:
-        searchProvider: deepseek-official
+        searchProvider: exa
         fetchProvider: http
 
-    - id: web-search-deepseek
-      name: '@deepseek-ai/dsh-web-search-deepseek'
-      config:
-        apiKeyEnv: DEEPSEEK_API_KEY
+    - id: web-search-exa
+      name: '@deepseek-ai/dsh-web-search-exa'
+
+    - id: web-search-parallel
+      name: '@deepseek-ai/dsh-web-search-parallel'
 
     - id: web-fetch-http
       name: '@deepseek-ai/dsh-web-fetch-http'
@@ -494,7 +491,6 @@
       name: '@deepseek-ai/dsh-tool-web'
       config:
         fetch: true
-        searchTimeoutMs: 60000
 
     - id: mcp-resources
       name: '@deepseek-ai/dsh-mcp-resources'

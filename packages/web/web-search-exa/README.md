@@ -29,11 +29,11 @@ Mount the provider in a composition that already loads the web service; it regis
 
 ### When to choose it
 
-Choose this backend when a deployment holds an Exa API key and wants Exa's keyword or neural search with per-result highlight snippets and publication dates. The provider is unavailable — and every search call fails with a structured error — when the key is empty or the endpoint base does not parse.
+Choose this backend when a deployment wants Exa's keyword or neural search with per-result highlight snippets and publication dates. The Web app's Plugins page can store its key privately; headless compositions can provide `$EXA_API_KEY` through the launch environment. The provider is unavailable — and every search call fails with a structured error — when no key is configured or the endpoint base does not parse.
 
 ### Minimal configuration
 
-Load the web service and the provider; the API key falls back to `$EXA_API_KEY` from the launch environment, and all other settings have safe defaults.
+Load the web service and the provider; a key saved in the credentials service is resolved for each request, otherwise the provider falls back to `$EXA_API_KEY` from the launch environment. All other settings have safe defaults.
 
 ```yaml
 - name: '@deepseek-ai/dsh-web'

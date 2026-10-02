@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { createVolatile, updateVolatile } from '@deepseek-ai/cosmokit'
 import WebRuntime, {
   WebError,
   type WebFetchProvider,
@@ -34,7 +35,7 @@ function fetchResult(marker: string): WebFetchResult {
 }
 
 /** Mount a WebRuntime on a fresh root context with the given config. */
-async function mountWeb(config: ConstructorParameters<typeof WebRuntime>[1] = {}): Promise<{ ctx: Context; web: WebRuntime }> {
+async function mountWeb(config: { searchProvider?: string; fetchProvider?: string } = {}): Promise<{ ctx: Context; web: WebRuntime }> {
   const ctx = new Context()
   await ctx.plugin(WebRuntime, config)
   return { ctx, web: ctx.web }
@@ -111,6 +112,18 @@ describe('WebRuntime execution resolution', () => {
     web.registerSearchProvider(makeSearchProvider('exa', available, () => Promise.resolve(searchResult('exa'))))
     web.registerSearchProvider(makeSearchProvider('perplexity', available, () => Promise.resolve(searchResult('perplexity'))))
     await expect(web.search({ query: 'q' })).resolves.toMatchObject({ content: 'perplexity' })
+  })
+
+  it('uses provider changes from the live settings reference on the next search', async () => {
+    const ctx = new Context()
+    const selection = createVolatile('exa')
+    const web = new WebRuntime(ctx, { searchProvider: selection })
+    web.registerSearchProvider(makeSearchProvider('exa', available, () => Promise.resolve(searchResult('exa'))))
+    web.registerSearchProvider(makeSearchProvider('parallel', available, () => Promise.resolve(searchResult('parallel'))))
+
+    await expect(web.search({ query: 'q' })).resolves.toMatchObject({ content: 'exa' })
+    updateVolatile(selection, createVolatile('parallel'))
+    await expect(web.search({ query: 'q' })).resolves.toMatchObject({ content: 'parallel' })
   })
 
   it('ignores unusable providers when auto-selecting', async () => {

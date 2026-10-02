@@ -1,0 +1,13 @@
+- button "返回插件列表": 插件列表
+- heading "网页搜索" [level=3]
+- paragraph: 选择 Exa 或 Parallel 并保存对应的 API Key。
+- text: 搜索提供方 已覆盖
+- button "恢复默认"
+- combobox "搜索提供方":
+  - option "Exa"
+  - option "Parallel" [selected]
+- paragraph: 选择 web_search 工具使用的网页搜索服务。
+- text: Parallel API Key 已配置密钥。
+- textbox "Parallel API Key"
+- paragraph: 密钥保存在私有凭据存储中，不写入设置文件。留空表示保留现有密钥。
+- button "保存" [disabled]
