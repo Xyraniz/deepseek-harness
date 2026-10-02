@@ -36,6 +36,8 @@ Start the GUI, open your browser, and start talking to the agent. The flags fine
 ```sh
 dsh --profile web
 dsh --profile web --no-open --port 8080
+dsh --profile web --mobile
+dsh --profile web --public-url https://dsh.example.com
 ```
 
 After startup you see a `dsh web:` line whose root URL carries a fresh process token. Unless `--no-open` or an SSH session suppresses it, the default browser opens that URL, receives a signed cookie, and redirects to the same directory without the token. You know it worked when the page loads and you can chat with the agent. Two failures to expect: if the frontend is not built, startup stops with a build hint (`pnpm run build` in a checkout); if the browser cannot be opened, a credential-free diagnostic prints to stderr while the server keeps running — open the printed startup URL yourself.
@@ -46,7 +48,7 @@ Saved model selections override the composition default. The settings card accep
 
 ### Configuration
 
-Most users never set these; the command-line flags feed the four settings below — `--host`, `--port`, and `--trusted-host` come from the invocation, and `--no-open` turns the browser handoff off for that invocation:
+Most users never set these; the command-line flags feed the settings below — `--host`, `--mobile`, `--public-url`, `--port`, and `--trusted-host` come from the invocation, and `--no-open` turns the browser handoff off for that invocation:
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -54,12 +56,13 @@ Most users never set these; the command-line flags feed the four settings below 
 | `printUrl` | `true` | Print the `dsh web:` URL line at startup |
 | `surfaceContext` | `true` | Give the agent GUI-orientation context and expose `DSH_WEB_URL` to its shell commands |
 | `trustedHosts` | `[]` | Extra hosts allowed to reach the GUI from the network |
+| `publicUrl` | — | Trust and print the HTTPS origin of an externally managed tunnel |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-web-app) is the exhaustive source for every accepted field and its JSDoc. The shipped composition carries no `time-context`, `schedule`, or `ui-schedule` row; the optional experimental bundle `@deepseek-ai/dsh-experimental-schedule-bundle` inserts those three rows from the Plugins page.
 
 ### LAN access and trusted hosts
 
-By default the GUI accepts connections from this machine only. A deployment that binds all network interfaces also allows browsers from the LAN, and the printed URL then includes a LAN address; `--trusted-host` adds extra hosts in either case. Host and Origin checks control reachability, while the token exchange authenticates every Host API method and WebSocket stream. The LAN addresses are sampled once at startup, so a network change later is not picked up — restart the GUI to re-advertise.
+By default the GUI accepts connections from this machine only. `--mobile` binds all network interfaces, prints the LAN URL, and displays a QR code for a phone on the same Wi-Fi; `--host 0.0.0.0` is the equivalent lower-level option. For a separately managed named Cloudflare Tunnel, configure its local service to the Web server and pass its HTTPS origin with `--public-url https://dsh.example.com`; DSH trusts that hostname and prints its tokenized link and QR code. DSH does not ask for Cloudflare credentials; named-tunnel setup remains in Cloudflare and `cloudflared`. Quick Tunnels are not supported because Cloudflare buffers their Server-Sent Events, which DSH uses for live responses. Host and Origin checks control reachability, while the token exchange authenticates every Host API method and WebSocket stream. Treat each printed URL and QR code as a password: anyone with one can access this session. LAN addresses are sampled once at startup, so a network change later is not picked up — restart the GUI to re-advertise.
 
 ### Running over SSH
 
@@ -89,18 +92,18 @@ The URL line and browser handoff are readiness signals: supervisors RPC as soon 
 
 ### LAN trust sampling
 
-`resolveLanTrust` samples the network once at boot: a loopback bind (`127.0.0.1`) derives no LAN addresses, while an all-interfaces bind adds every non-internal IPv4 literal. The derived literals plus the explicit `--trusted-host` authorities form the `/api` browser-trust fence, and the printed LAN URL always matches that fence.
+`resolveLanTrust` samples the network once at boot: a loopback bind (`127.0.0.1`) derives no LAN addresses, while an all-interfaces bind adds every non-internal IPv4 literal. The derived literals, explicit `--trusted-host` authorities, and optional `--public-url` host form the `/api` browser-trust fence, and each printed remote URL matches that fence.
 
 ### Source map
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | The `web-app` glue plugin: dist resolution, LAN trust sampling, prompt sections, bash variable, URL line, browser handoff |
-| [`src/startup.ts`](src/startup.ts) | The `web-startup` provider: `--host`, `--port`, `--trusted-host`, `--no-open`, `--help` |
+| [`src/index.ts`](src/index.ts) | The `web-app` glue plugin: dist resolution, LAN and public-origin trust, prompt sections, bash variable, URL and QR output, browser handoff |
+| [`src/startup.ts`](src/startup.ts) | The `web-startup` provider: `--host`, `--mobile`, `--public-url`, `--port`, `--trusted-host`, `--no-open`, `--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | The web patch: restated base values, web host rows, browser roster, preset registry |
 | [`presets/`](presets) | One `@deepseek-ai/dsh-agent-preset` declaration per shipped preset (`standard`, `ptc`, `minimal`, `cordis`), each its own patch file |
 | — | No runtime invariant companion is published; every contribution (frontend-static child plugin, prompt section, bashEnv registration) is registry-disposed with the fiber, and each owning registry's package carries that relation's invariant; the package holds no mutable state of its own to audit. |
-| [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | Dist resolution, fallback seat, prompt sections, readiness |
+| [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | Dist resolution, fallback seat, prompt sections, LAN readiness, configured public origins |
 | [`tests/startup.spec.ts`](tests/startup.spec.ts) | Command-line parsing over a real Loader tree |
 | [`tests/trusted-hosts.spec.ts`](tests/trusted-hosts.spec.ts) | LAN-trust sampling |
 | [`tests/browser-open.spec.ts`](tests/browser-open.spec.ts) | Default-browser handoff after the page is reachable |
@@ -155,7 +158,9 @@ These limits tell you what to expect in unusual setups — a source checkout, SS
 - **Only the handoff start is observable** — the GUI reports that the browser was asked to open, not that it actually opened; a later browser exit is never reported, and the printed URL is your manual fallback.
 - **SSH sessions keep the URL but skip the browser handoff** — the printed URL names the remote host's loopback endpoint; the SSH client or editor must expose and open the local forwarded address.
 - **`BROWSER` overrides only come from the environment** — a discovered `.env` cannot set `BROWSER`; only an inherited value can choose the executable for the automatic handoff.
-- **Binding all network interfaces is not supported** — `--host 0.0.0.0` is rejected at startup for safety; use the default loopback host.
+- **LAN and named-tunnel URLs grant session access** — the printed token URL exchanges for an authenticated browser session; share it only with trusted people and stop the process when access should end.
+- **Quick Tunnels cannot carry live responses** — Cloudflare does not support Server-Sent Events on Quick Tunnels, and the Web GUI uses that transport for live output ([Cloudflare Quick Tunnel limits](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)).
+- **Named tunnels are managed separately** — point the tunnel at the local Web server and pass its HTTPS origin with `--public-url`; this CLI does not create or manage a named Cloudflare Tunnel.
 
 <a id="dev-note"></a>
 ### Dev Note

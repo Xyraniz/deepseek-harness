@@ -148,11 +148,14 @@ describe('web-app runtime glue', () => {
     expect(log).toHaveBeenCalledWith('dsh web: http://127.0.0.1:4567/?token=test-token (LAN: http://192.168.1.5:4567/?token=test-token)')
     expect(log).toHaveBeenCalledWith('dsh web: opening the default browser; pass --no-open to disable')
     expect(openBrowser).toHaveBeenCalledWith('http://127.0.0.1:4567/?token=test-token')
-    expect(lifecycle).toEqual([
+    expect(lifecycle.slice(0, 3)).toEqual([
       'dsh web: http://127.0.0.1:4567/?token=test-token (LAN: http://192.168.1.5:4567/?token=test-token)',
-      'dsh web: opening the default browser; pass --no-open to disable',
-      'open:http://127.0.0.1:4567/?token=test-token',
+      'dsh access: treat mobile links as passwords; anyone with one can access this session',
+      'dsh mobile: http://192.168.1.5:4567/?token=test-token',
     ])
+    expect(lifecycle).toContain('dsh web: opening the default browser; pass --no-open to disable')
+    expect(lifecycle).toContain('open:http://127.0.0.1:4567/?token=test-token')
+    expect(lifecycle.some(line => line.includes('\u2588'))).toBe(true)
     const assembly = await ctx.systemPrompt.assemble()
     expect(assembly.sections.find(entry => entry.name === 'harness:source')?.text).toContain('DeepSeek Harness implementation checkout')
     const section = assembly.sections.find(entry => entry.name === 'app:web-surface')
@@ -162,6 +165,29 @@ describe('web-app runtime glue', () => {
     expect(section?.text).toContain('pnpm run dev:web')
     const webRuntime = contributions.find(contribution => contribution.name === 'web-runtime')
     expect(webRuntime?.resolve()).toEqual({ DSH_WEB_URL: 'http://127.0.0.1:4567' })
+    await ctx.fiber.dispose()
+  })
+
+  it('trusts and prints the origin of an existing HTTPS tunnel', async () => {
+    stageDist()
+    const ctx = new Context()
+    ctx.provide('webServer', fakeHttpServer().server)
+    provideConnection(ctx)
+    provideLoader(ctx)
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    await apply(ctx, new Config({
+      openBrowser: false,
+      printUrl: true,
+      surfaceContext: false,
+      trustedHosts: [],
+      publicUrl: 'https://dsh.example.com',
+    }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(ctx.get('webRuntime')).toEqual({ lanAddresses: [], trustedHosts: ['dsh.example.com'] })
+    expect(log).toHaveBeenCalledWith('dsh public: https://dsh.example.com/?token=test-token')
+    expect(log).toHaveBeenCalledWith('dsh mobile: https://dsh.example.com/?token=test-token')
+    expect(log.mock.calls.some(([line]) => String(line).includes('\u2588'))).toBe(true)
     await ctx.fiber.dispose()
   })
 

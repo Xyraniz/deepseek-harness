@@ -44,7 +44,7 @@ interface Config {
 }
 ```
 
-`host` 只接受 `127.0.0.1`（默认姿态）和 `0.0.0.0`（刻意的网络暴露）。载体本身不拥有 TLS、认证或 Origin 策略，因此绑定到非回环地址会暴露服务器，除非组合层提供这些控制。`compression` 默认为 `none`；随附的 Web 组合选择 gzip level 1 和 1024 字节阈值。随附的 `dsh web` 命令选择 loopback 并拒绝 `--host 0.0.0.0`；其 Connection 插件为每个 Host API route 与 stream 提供 Host/Origin 校验和浏览器会话认证。其他组合自行拥有绑定与路由认证策略。dist 位置是认领席位的前端插件的组装事实。
+`host` 只接受 `127.0.0.1`（默认姿态）和 `0.0.0.0`（刻意的网络暴露）。载体本身不拥有 TLS、认证或 Origin 策略，因此绑定到非回环地址会暴露服务器，除非组合层提供这些控制。`compression` 默认为 `none`；随附的 Web 组合选择 gzip level 1 和 1024 字节阈值。随附的 `dsh web` 命令默认使用 loopback；`--mobile` 会选择 `0.0.0.0`，并向 Connection Host/Origin 信任校验提供采样到的 LAN IP。`--public-url` 会将单独配置的 HTTPS 源加入该校验。Connection 仍使用浏览器会话为每个 Host API route 与 stream 进行认证。其他组合自行拥有绑定与路由认证策略。dist 位置是认领席位的前端插件的组装事实。
 
 ## 服务
 

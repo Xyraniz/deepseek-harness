@@ -36,6 +36,8 @@ kind: "package-bundle"
 ```sh
 dsh --profile web
 dsh --profile web --no-open --port 8080
+dsh --profile web --mobile
+dsh --profile web --public-url https://dsh.example.com
 ```
 
 启动后你会看到 `dsh web:` 行，其根 URL 携带新的进程 token。除非 `--no-open` 或 SSH 会话抑制，否则默认浏览器会打开该 URL、取得签名 cookie，再重定向到不含认证参数的同一目录。页面加载且你可以与 agent 对话，就说明成功了。两种可预期的失败：前端未构建时，启动会以构建提示停止（checkout 中运行 `pnpm run build`）；浏览器无法打开时，stderr 会打印不含凭据的诊断，但服务器会继续运行——请自行打开已打印的启动 URL。
@@ -46,7 +48,7 @@ dsh --profile web --no-open --port 8080
 
 ### 配置
 
-大多数用户不需要设置这些；命令行 flag 会提供给下面四个设置——`--host`、`--port` 与 `--trusted-host` 来自本次调用，`--no-open` 仅对本次调用关闭浏览器交接：
+大多数用户不需要设置这些；命令行 flag 会提供下面的设置——`--host`、`--mobile`、`--public-url`、`--port` 与 `--trusted-host` 来自本次调用，`--no-open` 仅对本次调用关闭浏览器交接：
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
@@ -54,12 +56,13 @@ dsh --profile web --no-open --port 8080
 | `printUrl` | `true` | 启动时打印 `dsh web:` URL 行 |
 | `surfaceContext` | `true` | 给 agent 提供 GUI 定位上下文，并把 `DSH_WEB_URL` 暴露给其 shell 命令 |
 | `trustedHosts` | `[]` | 允许从网络访问 GUI 的额外主机 |
+| `publicUrl` | — | 信任并打印外部管理隧道的 HTTPS 源 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-web-app)是每个受支持字段及其 JSDoc 的穷尽式真源。 随发行版交付的组合不含 `time-context`、`schedule` 和 `ui-schedule` 行，可选实验性 bundle `@deepseek-ai/dsh-experimental-schedule-bundle` 可在插件管理页插入这三行。
 
 ### LAN 访问与可信主机
 
-默认情况下 GUI 只接受本机的连接。绑定所有网络接口的部署也会允许 LAN 内的浏览器访问，此时打印的 URL 会附带一个 LAN 地址；`--trusted-host` 在两种情况下都能添加额外主机。Host 与 Origin 检查控制可达性，token 交换则认证每个 Host API 方法与 WebSocket 流。LAN 地址只在启动时采样一次，因此之后的网络变化不会被感知——重启 GUI 以重新公告。
+默认情况下 GUI 只接受本机的连接。`--mobile` 会绑定所有网络接口、打印 LAN 地址，并显示供同一 Wi-Fi 下手机扫描的二维码；较底层的等效选项是 `--host 0.0.0.0`。若要使用单独管理的命名 Cloudflare Tunnel，请将其本地服务指向 Web 服务器，再通过 `--public-url https://dsh.example.com` 传入 HTTPS 源；DSH 会信任该主机名，并打印带 token 的链接和二维码。DSH 不会索取 Cloudflare 凭据；命名隧道仍由 Cloudflare 和 `cloudflared` 管理。Quick Tunnel 不受支持，因为 Cloudflare 会缓冲其 Server-Sent Events，而 DSH 使用 SSE 传递实时响应。Host 与 Origin 检查控制可达性，token 交换则认证每个 Host API 方法与 WebSocket 流。请将打印的 URL 和二维码视作密码：任何拿到它的人都能访问该会话。LAN 地址只在启动时采样一次，因此之后的网络变化不会被感知——重启 GUI 以重新公告。
 
 ### 通过 SSH 运行
 
@@ -89,18 +92,18 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 
 ### LAN 信任采样
 
-`resolveLanTrust` 在启动时只采样一次网络：loopback 绑定（`127.0.0.1`）不派生任何 LAN 地址，绑定所有网卡则会加入每个非 internal IPv4 字面量。派生字面量加上显式的 `--trusted-host` 权威标识组成 `/api` 浏览器信任栅栏，打印的 LAN URL 始终与该栅栏一致。
+`resolveLanTrust` 在启动时只采样一次网络：loopback 绑定（`127.0.0.1`）不派生任何 LAN 地址，绑定所有网卡则会加入每个非 internal IPv4 字面量。派生字面量、显式的 `--trusted-host` 权威标识和可选的 `--public-url` 主机名共同组成 `/api` 浏览器信任栅栏，每个打印的远程 URL 都与该栅栏一致。
 
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | `web-app` 粘合插件：dist 解析、LAN 信任采样、提示词段落、bash 变量、URL 行、浏览器交接 |
-| [`src/startup.ts`](src/startup.ts) | `web-startup` 提供方：`--host`、`--port`、`--trusted-host`、`--no-open`、`--help` |
+| [`src/index.ts`](src/index.ts) | `web-app` 粘合插件：dist 解析、LAN 与公网源信任、提示词段落、bash 变量、URL 和二维码输出、浏览器交接 |
+| [`src/startup.ts`](src/startup.ts) | `web-startup` 提供方：`--host`、`--mobile`、`--public-url`、`--port`、`--trusted-host`、`--no-open`、`--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | Web patch：重述的基础值、Web 宿主行、浏览器名录、preset 注册表 |
 | [`presets/`](presets) | 每个随发行版交付的 preset（`standard`、`ptc`、`minimal`、`cordis`）各一条 `@deepseek-ai/dsh-agent-preset` 声明，各自一个补丁文件 |
 | — | 不发布运行时不变式伴生入口；每项贡献（frontend-static 子插件、提示词段落、bashEnv 注册）都会随 fiber 由注册表释放，且每个所属注册表的包负责该关系的不变式；本包不持有需要审计的可变状态。 |
-| [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | dist 解析、回退席位、提示词段落、就绪宣告 |
+| [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | dist 解析、回退席位、提示词段落、LAN 就绪通知、配置的公网源 |
 | [`tests/startup.spec.ts`](tests/startup.spec.ts) | 在真实 Loader 树上的命令行解析 |
 | [`tests/trusted-hosts.spec.ts`](tests/trusted-hosts.spec.ts) | LAN 信任采样 |
 | [`tests/browser-open.spec.ts`](tests/browser-open.spec.ts) | 页面可达后的默认浏览器交接 |
@@ -155,7 +158,9 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 - **只能观察到交接的启动**——GUI 只报告浏览器被请求打开，而不是它确实打开了；之后的浏览器退出永远不会上报，打印的 URL 是你的手动回退路径。
 - **SSH 会话保留 URL 但跳过浏览器交接**——打印的 URL 指向远端宿主机 loopback 端点；SSH 客户端或编辑器必须暴露并打开本地转发地址。
 - **`BROWSER` 覆盖只能来自环境**——被发现的 `.env` 不能设置 `BROWSER`；只有继承值能为自动交接选择可执行文件。
-- **不支持绑定所有网络接口**——出于安全考虑，`--host 0.0.0.0` 会在启动时被拒绝；请使用默认 loopback 主机。
+- **LAN 和命名隧道 URL 允许访问会话**——打印的 token URL 可换取经过认证的浏览器会话；只与可信的人分享，并在需要结束访问时停止进程。
+- **Quick Tunnel 无法传输实时响应**——Cloudflare 的 Quick Tunnel 不支持 Server-Sent Events，而 Web UI 用 SSE 传输实时输出；请配置命名隧道（[Cloudflare Quick Tunnel 限制](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)）。
+- **命名隧道需单独管理**——将隧道指向本地 Web 服务，并通过 `--public-url` 传入 HTTPS 源；此 CLI 不会创建或管理命名 Cloudflare Tunnel。
 
 <a id="dev-note"></a>
 ### 开发备注

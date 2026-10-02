@@ -374,14 +374,14 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       expect(web.stdout).toContain('--port <port>')
       expect(web.stdout).not.toContain('dsh web: http://')
 
-      const wildcardHost = await runBuiltBin(['web', '--host', '0.0.0.0'], {
+      const conflictingMobileHost = await runBuiltBin(['web', '--mobile', '--host', '127.0.0.1'], {
         DSH_HOME: home,
         DSH_TELEMETRY_DISABLED: '1',
       })
-      expect(wildcardHost.code).toBe(1)
-      expect(wildcardHost.stdout).toBe('')
-      expect(wildcardHost.stderr).toContain('--host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network; use 127.0.0.1 instead')
-      expect(wildcardHost.stderr).not.toContain('dsh web: http://')
+      expect(conflictingMobileHost.code).toBe(1)
+      expect(conflictingMobileHost.stdout).toBe('')
+      expect(conflictingMobileHost.stderr).toContain('--mobile cannot be combined with --host')
+      expect(conflictingMobileHost.stderr).not.toContain('dsh web: http://')
 
       const headlessHelp = await runBuiltBin(['headless', '--help'], {
         DSH_HOME: home,

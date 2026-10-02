@@ -22,6 +22,12 @@
 
 Agent（智能体）可以读取和编辑工作区文件、运行命令、委派工作并维护计划。如果根据当前权限策略，某项操作需要审批，Web UI 会先询问你。
 
+## 在手机上打开 Web UI
+
+如果手机和电脑连接同一个 Wi-Fi，请在电脑上运行 `dsh --profile web --mobile`，然后扫描终端中显示的二维码。手机必须能通过本地网络访问这台电脑。
+
+若要从当前 Wi-Fi 之外访问，请配置命名 Cloudflare Tunnel 指向本地 Web 服务（`http://127.0.0.1:3080`），然后运行 `dsh --profile web --public-url https://dsh.example.com`。DSH 会打印带 token 的链接和二维码；它不会索取 Cloudflare 凭据，但命名隧道必须已在 Cloudflare 与 `cloudflared` 中完成配置。Quick Tunnel 不受支持，因为其边缘节点会缓冲 Server-Sent Events，而 DSH 使用 SSE 传输实时响应（[Cloudflare Quick Tunnel 限制](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)）。打印的链接允许访问该会话，因此只与可信的人分享。
+
 ## 继续使用
 
 - [配置模型](./providers.zh.md)

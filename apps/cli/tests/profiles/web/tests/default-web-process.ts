@@ -20,6 +20,8 @@ const repoRoot = fileURLToPath(new URL('../../../../../../', import.meta.url))
 interface DefaultWeb {
   root: string
   url: string
+  stdout: () => string
+  stderr: () => string
   request: (command: 'roster' | 'mount-experimental' | 'mount-experimental-entry') => Promise<RuntimeRoster>
 }
 
@@ -32,7 +34,13 @@ interface DefaultWeb {
 export async function withDefaultWeb(
   test: TestContext,
   inspect: (app: DefaultWeb) => Promise<void>,
-  options: { patches?: readonly string[]; prepare?: (root: string) => Promise<void> } = {},
+  options: {
+    patches?: readonly string[]
+    flags?: readonly string[]
+    mobile?: boolean
+    env?: NodeJS.ProcessEnv | ((root: string) => NodeJS.ProcessEnv)
+    prepare?: (root: string) => Promise<void>
+  } = {},
 ): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-web-default-isolation-'))
   let removal: Promise<void> | undefined
@@ -40,6 +48,7 @@ export async function withDefaultWeb(
   test.onTestFinished(removeRoot)
   try {
     await options.prepare?.(root)
+    const envOverrides = typeof options.env === 'function' ? options.env(root) : options.env
     await writeFile(join(root, 'package.json'), JSON.stringify({ type: 'module' }) + '\n')
     for (const relative of ['runtime-roster.ts', 'fixtures/runtime-roster-observer.ts']) {
       const source = await readFile(new URL(relative, import.meta.url), 'utf8')
@@ -62,7 +71,8 @@ export async function withDefaultWeb(
       mode: 'lib',
       configArgs: [
         '--profile', 'web', ...options.patches?.flatMap(path => ['--patch', path]) ?? [],
-        '--patch', patch, '--host', '127.0.0.1', '--port', '0', '--no-open',
+        '--patch', patch, ...(options.mobile ? ['--mobile'] : ['--host', '127.0.0.1']),
+        '--port', '0', '--no-open', ...(options.flags ?? []),
       ],
       env: {
         NODE_OPTIONS: undefined,
@@ -73,6 +83,7 @@ export async function withDefaultWeb(
         DSH_TELEMETRY_DISABLED: '1',
         DEEPSEEK_API_KEY: 'keyless-default-web-no-call',
         NODE_NO_WARNINGS: '1',
+        ...envOverrides,
       },
     })
     test.signal.throwIfAborted()
@@ -155,7 +166,7 @@ export async function withDefaultWeb(
         return /dsh web: (http:\/\/[^\s]+)/u.exec(stdout)?.[1]
       }, { timeout: test.task.timeout }).toBeDefined()
       const url = /dsh web: (http:\/\/[^\s]+)/u.exec(stdout)![1]!
-      await inspect({ root, url, request })
+      await inspect({ root, url, stdout: () => stdout, stderr: () => stderr, request })
     } finally {
       const result = await close()
       test.signal.removeEventListener('abort', abort)

@@ -27,6 +27,8 @@ import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-shell-env'
 
+const qrcodeTerminal = createRequire(import.meta.url)('qrcode-terminal') as typeof import('qrcode-terminal')
+
 /** Stable Cordis plugin name. */
 export const name = 'web-app'
 
@@ -55,6 +57,8 @@ export interface Config {
   surfaceContext: boolean
   /** Explicit `--trusted-host` authorities from this invocation. */
   trustedHosts: string[]
+  /** Public HTTPS origin for a separately managed tunnel or reverse proxy. */
+  publicUrl?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -62,13 +66,14 @@ export const Config: z<Config> = z.object({
   printUrl: z.boolean().default(true),
   surfaceContext: z.boolean().default(true),
   trustedHosts: z.array(String).default([]),
+  publicUrl: z.string().required(false),
 })
 
 /** Bind-dependent Web values shared by the trust fence and URL display. */
 export interface WebRuntimeValues {
   /** LAN IPv4 literals sampled once when the server binds all interfaces. */
   lanAddresses: string[]
-  /** LAN literals followed by explicit invocation authorities. */
+  /** LAN literals, explicit invocation authorities, and the public HTTPS hostname when configured. */
   trustedHosts: string[]
 }
 
@@ -129,6 +134,13 @@ export function resolveLanTrust(bindHost: string, extra: readonly string[]): Web
       .map(iface => iface.address)
     : []
   return { lanAddresses, trustedHosts: [...lanAddresses, ...extra] }
+}
+
+/** Render the exact URL printed for a phone as a terminal QR code. */
+function terminalQrCode(url: string): string {
+  let output = ''
+  qrcodeTerminal.generate(url, { small: true }, (qr) => { output = qr })
+  return output
 }
 
 /** Model-visible orientation and acceptance boundary for sessions created through `dsh web`. */
@@ -214,7 +226,8 @@ async function openBrowser(url: string): Promise<void> {
 export const internals: {
   resolveDistIndex: () => string
   openBrowser: (url: string) => Promise<void>
-} = { resolveDistIndex, openBrowser }
+  terminalQrCode: (url: string) => string
+} = { resolveDistIndex, openBrowser, terminalQrCode }
 
 /**
  * Mount the Web runtime: dist serving, surface prompt, the bash runtime
@@ -224,6 +237,17 @@ export const internals: {
  */
 export function apply(ctx: Context, config: Config): void {
   const runtime = resolveLanTrust(ctx.webServer.host, config.trustedHosts)
+  const publicTunnelUrl = config.publicUrl === undefined ? undefined : new URL(config.publicUrl)
+  if (publicTunnelUrl !== undefined) {
+    if (publicTunnelUrl.protocol !== 'https:' || publicTunnelUrl.username !== '' || publicTunnelUrl.password !== ''
+      || publicTunnelUrl.pathname !== '/' || publicTunnelUrl.search !== '' || publicTunnelUrl.hash !== '') {
+      throw new Error('web-app: publicUrl must be an HTTPS origin without path, query, or fragment')
+    }
+    if (publicTunnelUrl.hostname === 'trycloudflare.com' || publicTunnelUrl.hostname.endsWith('.trycloudflare.com')) {
+      throw new Error('web-app: Quick Tunnels do not support DSH live streaming; configure a named tunnel instead')
+    }
+    runtime.trustedHosts.push(publicTunnelUrl.host)
+  }
   // The loopback URL belongs to this host. Under SSH, the operator reaches it
   // through a local forwarding address that this process cannot derive.
   const handoffBrowser = config.openBrowser && !launchedThroughSsh(launchEnvironmentOf(ctx))
@@ -262,13 +286,30 @@ export function apply(ctx: Context, config: Config): void {
         const authenticatedUrl = connectionCtx.connection.authenticatedUrl(webUrl)
         // Reuse the exact LAN snapshot provided to the /api trust fence.
         const lanCandidate = runtime.lanAddresses[0]
-        const port = connectionCtx.webServer.port
+        const boundPort = connectionCtx.webServer.port
         const lanUrl = lanCandidate === undefined
           ? undefined
-          : connectionCtx.connection.authenticatedUrl(`http://${lanCandidate}:${String(port)}`)
+          : connectionCtx.connection.authenticatedUrl(`http://${lanCandidate}:${String(boundPort)}`)
+        const publicUrl = publicTunnelUrl === undefined
+          ? undefined
+          : connectionCtx.connection.authenticatedUrl(publicTunnelUrl.origin)
         ANNOUNCED_ROOTS.add(connectionCtx.root)
         if (config.printUrl) {
           console.log(`dsh web: ${authenticatedUrl}${lanUrl === undefined ? '' : ` (LAN: ${lanUrl})`}`)
+        }
+        if (publicUrl !== undefined) console.log(`dsh public: ${publicUrl}`)
+        const mobileUrl = publicUrl ?? lanUrl
+        if (mobileUrl !== undefined) {
+          console.log('dsh access: treat mobile links as passwords; anyone with one can access this session')
+          console.log(`dsh mobile: ${mobileUrl}`)
+          try {
+            console.log(internals.terminalQrCode(mobileUrl))
+          } catch (error: unknown) {
+            const reason = error instanceof Error ? error.message : String(error)
+            console.error(`web-app: could not render the mobile QR code: ${reason}`)
+          }
+        } else if (connectionCtx.webServer.host === ALL_INTERFACES_HOST) {
+          console.log('dsh mobile: no non-loopback IPv4 address was found; connect over Wi-Fi or configure a named tunnel with --public-url')
         }
         if (handoffBrowser) {
           console.log('dsh web: opening the default browser; pass --no-open to disable')

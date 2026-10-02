@@ -64,6 +64,7 @@ export const apply = ctx => globalThis.__webStartupApply(ctx)
     '    openBrowser: !!js ctx.webStartup.openBrowser',
     '    port: !!js ctx.webStartup.port ?? 3080',
     '    trustedHosts: !!js ctx.webStartup.trustedHosts',
+    '    publicUrl: !!js ctx.webStartup.publicUrl',
     '- id: provider',
     `  name: ${pathToFileURL(join(dir, 'provider.mjs')).href}`,
     '',
@@ -118,6 +119,7 @@ describe('web command-line provider', () => {
       openBrowser: true,
       port: 3080,
       trustedHosts: [],
+      publicUrl: undefined,
     })
   })
 
@@ -126,6 +128,8 @@ describe('web command-line provider', () => {
     expect(observed.out).toContain('dsh --profile web')
     expect(observed.out).toContain('--no-open')
     expect(observed.out).toContain('--trusted-host')
+    expect(observed.out).toContain('--mobile')
+    expect(observed.out).toContain('--public-url')
     expect(values).toBeUndefined()
     expect(observed.readerConfig).toBeUndefined()
     expect(observed.exits).toEqual([0])
@@ -139,11 +143,33 @@ describe('web command-line provider', () => {
     expect(observed.exits).toEqual([1])
   })
 
-  it('rejects the intentionally unsupported all-interfaces host before the consumer activates', async () => {
+  it('accepts the explicit all-interface bind and the mobile shortcut', async () => {
     const { values, observed } = await bootProvider(['--host', '0.0.0.0'])
-    expect(observed.out).toContain('--host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network; use 127.0.0.1 instead')
-    expect(values).toBeUndefined()
-    expect(observed.readerConfig).toBeUndefined()
-    expect(observed.exits).toEqual([1])
+    expect(values).toEqual({ host: '0.0.0.0', openBrowser: true, trustedHosts: [] })
+    expect(observed.readerConfig).toEqual({ host: '0.0.0.0', openBrowser: true, port: 3080, trustedHosts: [], publicUrl: undefined })
+    expect(observed.exits).toEqual([])
+
+    const mobile = await bootProvider(['--mobile'])
+    expect(mobile.values).toEqual({ host: '0.0.0.0', openBrowser: true, trustedHosts: [] })
+    expect(mobile.observed.exits).toEqual([])
+  })
+
+  it('validates a named tunnel origin and rejects conflicting mobile binds', async () => {
+    const namedTunnel = await bootProvider(['--public-url', 'https://dsh.example.com'])
+    expect(namedTunnel.values?.publicUrl).toBe('https://dsh.example.com')
+    expect(namedTunnel.observed.readerConfig).toMatchObject({ publicUrl: 'https://dsh.example.com' })
+
+    const invalidUrl = await bootProvider(['--public-url', 'http://dsh.example.com/path'])
+    expect(invalidUrl.observed.out).toContain('--public-url must be an HTTPS origin')
+    expect(invalidUrl.values).toBeUndefined()
+
+    const quickTunnel = await bootProvider(['--public-url', 'https://quiet-bird.trycloudflare.com'])
+    expect(quickTunnel.observed.out).toContain('Quick Tunnels do not support DSH live streaming')
+    expect(quickTunnel.values).toBeUndefined()
+
+    const conflicting = await bootProvider(['--mobile', '--host', '127.0.0.1'])
+    expect(conflicting.observed.out).toContain('--mobile cannot be combined with --host')
+    expect(conflicting.values).toBeUndefined()
+    expect(conflicting.observed.exits).toEqual([1])
   })
 })
