@@ -490,12 +490,13 @@
 # a host skill-filesystem row — register into its global layer, while a preset's
 # `skill-filesystem` registers into that preset's layer, and each agent reads the
 # merged catalog its scope chain selects. Only the per-agent rows move behind
-# presets: the base host `skill-filesystem` row is disabled here (presets own local
-# discovery), and `tool-skill` is what a preset mounts to give its agent the
-# catalog and loader at all.
+# presets. Keep a host row for the packaged Claude Design skill only;
+# `includeDefaultRoots: false` leaves local and user roots to each preset.
+# `tool-skill` is what a preset mounts to give its agent the catalog and loader.
 
 - id: skill-filesystem
-  disabled: true
+  config:
+    includeDefaultRoots: false
 
 - id: tool-skill
   disabled: true

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `web/` packages let models search the public web and fetch HTTP(S) pages through the `web_search` and `web_fetch` tools. Deployments can choose Exa, Parallel, Perplexity, or DeepSeek for search and anonymous HTTP(S) access for fetch; the base composition uses Exa by default and also ships Parallel. The Web app lets users choose Exa or Parallel and save that provider's API key in private credentials. Availability and resource limits depend on the configured provider. Use this family for search and page retrieval, not interactive browsing, content extraction, or per-URL policy enforcement. Models receive consistent tool behavior, cancellation, and error reporting when providers change.
+The `web/` packages let models search the web and fetch HTTP(S) pages through the `web_search` and `web_fetch` tools. Deployments can choose Exa, Parallel, Perplexity, or DeepSeek for search and anonymous HTTP(S) access for fetch; the base composition uses Exa by default and ships Parallel. The Web app lets users choose Exa or Parallel and save that provider's API key in private credentials. Availability and resource limits depend on the provider. Use this family for search and page retrieval, not interactive browsing, content extraction, or per-URL policy enforcement. Models receive consistent tool behavior, cancellation, and error reporting when providers change.
 
 ## Table of Contents
 

@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-`web/` 包让模型通过 `web_search` 与 `web_fetch` 工具搜索公共 web 和抓取 HTTP(S) 页面。部署可为搜索选择 Exa、Parallel、Perplexity 或 DeepSeek，并通过匿名 HTTP(S) 访问抓取页面；base 组合默认使用 Exa，也内置 Parallel。Web app 允许用户选择 Exa 或 Parallel，并把相应的 API 密钥保存在私有凭据中。可用性与资源上限取决于配置的提供方。该家族用于搜索和页面检索，不用于交互式浏览、内容提取或逐 URL 策略执行。提供方变化时，模型仍能获得一致的工具行为、取消与错误报告。
+`web/` 包让模型通过 `web_search` 与 `web_fetch` 工具搜索 web 和抓取 HTTP(S) 页面。部署可为搜索选择 Exa、Parallel、Perplexity 或 DeepSeek，并通过匿名 HTTP(S) 访问抓取页面；base 组合默认使用 Exa，并内置 Parallel。Web app 允许用户选择 Exa 或 Parallel，并把相应的 API 密钥保存在私有凭据中。可用性与资源上限取决于提供方。该家族用于搜索和页面检索，不用于交互式浏览、内容提取或逐 URL 策略执行。提供方变化时，模型仍能获得一致的工具行为、取消与错误报告。
 
 ## 目录
 

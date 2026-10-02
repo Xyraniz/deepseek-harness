@@ -38,7 +38,11 @@ export interface ParallelSearchProviderOptions {
   mode: 'turbo' | 'fast' | 'basic' | 'advanced'
 }
 
-/** Map one Parallel result, dropping entries without a non-blank excerpt. */
+/**
+ * Map one Parallel result, dropping entries without a non-blank excerpt.
+ * @param result - one result returned by the Parallel Search API.
+ * @returns the normalized cited source, or undefined when its excerpts are blank.
+ */
 export function mapParallelResult(result: ParallelResult): WebSearchSource | undefined {
   const snippet = result.excerpts?.find(excerpt => excerpt.trim().length > 0)
   if (snippet === undefined) return undefined
@@ -50,7 +54,11 @@ export function mapParallelResult(result: ParallelResult): WebSearchSource | und
   }
 }
 
-/** Map a Parallel response to DSH's normalized search result. */
+/**
+ * Map a Parallel response to DSH's normalized search result.
+ * @param response - response returned by the Parallel Search API.
+ * @returns normalized sources with the truncation flag unset.
+ */
 export function mapParallelResponse(response: ParallelSearchResponse): WebSearchResult {
   const sources = (response.results ?? [])
     .map(mapParallelResult)

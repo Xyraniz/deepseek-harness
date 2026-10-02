@@ -308,6 +308,8 @@ export interface LaunchOptions {
   developerTools?: boolean
   /** Enable the real Open In rows with deterministic launch-environment facts. */
   openInAppEnvironment?: LaunchEnvironmentSnapshot
+  /** Leave the Host skill-filesystem row free of the scaffold overlay for Settings write coverage. */
+  editableSkillsSettings?: boolean
   /** Compare the replayed root Session; `read-only` also forbids refresh writes to a borrowed fixture. */
   compareReplaySession?: boolean | 'read-only'
   /**
@@ -583,7 +585,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // the owned temp world so ~/.dsh, ~/.agents, and a bundled-root env setting
     // cannot change replay requests or conversation goldens. Project roots stay
     // enabled against the same empty temp workspace, preserving the real seam.
-    {
+    ...options.editableSkillsSettings === true ? [] : [{
       id: 'skill-filesystem',
       config: {
         dshHome: join(workspaceCwd, '.dsh-home'),
@@ -591,7 +593,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
         bundledSkillDir: join(workspaceCwd, '.bundled-skills'),
         watch: false,
       },
-    },
+    }],
     // fs/bash cwd default to process.cwd(); the gateway injects the same
     // value into session.cwd — chdir below anchors all three to the temp
     // workspace, keeping the composition untouched.

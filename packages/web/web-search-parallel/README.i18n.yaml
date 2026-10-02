@@ -24,11 +24,23 @@
   en: 216ed6d213cc91ea
   zh: 5f171a9a7c84ae60
 /deepseek-ai-dsh-web-search-parallel/model-experience:
-  en: de6a2501f1f2bae9
-  zh: 5a5f3ea583b0e334
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-web-search-parallel/model-experience/parallel-search-sources:
+  en: f506b4cd4101f731
+  zh: 0ec81bb26eba11e3
+/deepseek-ai-dsh-web-search-parallel/model-experience/parallel-search-sources/what-the-model-sees:
+  en: a853f05948e5a5fc
+  zh: 18b4f303fb0461b8
+/deepseek-ai-dsh-web-search-parallel/model-experience/parallel-search-sources/token-effect:
+  en: 6d023a6e0b6d025d
+  zh: a180528663a98320
+/deepseek-ai-dsh-web-search-parallel/model-experience/parallel-search-sources/kv-cache-effect:
+  en: 791c0e9a5db1c597
+  zh: e321782f268fc70d
 /deepseek-ai-dsh-web-search-parallel/known-limitations-and-deferred-work:
-  en: 8135ac99eb30cd27
-  zh: f22241f6a5540a9e
-/deepseek-ai-dsh-web-search-parallel/dev-note:
-  en: b75c8458928b72b9
-  zh: 003ba4e17b4b5269
+  en: 94e159db810a220b
+  zh: bc22323570f79134
+/deepseek-ai-dsh-web-search-parallel/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

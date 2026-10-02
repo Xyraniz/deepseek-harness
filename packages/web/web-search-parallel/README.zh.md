@@ -63,13 +63,35 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-Parallel 会向共享的 `web_search` 工具提供带引用的搜索来源。该提供方不会创建额外的面向模型工具，也不会更改工具 schema。
+### Parallel 搜索来源
+
+#### 模型看到的内容
+
+共享的 `web_search` 结果包含每条保留来源的 URL、可选标题、首个非空 excerpt 作为 `snippet`，以及可选的 `publishedAt`。没有非空 excerpt 的结果会被省略。
+
+#### Token effect
+
+提供方不会添加固定文本。Token 用量取决于 Parallel 返回的来源元数据与 snippet，并受共享服务的结果上限约束。
+
+#### KV Cache 影响
+
+这些来源会在搜索调用之后作为工具回复到达模型。该回复会向对话历史追加内容，但不会替换更早的请求前缀。
 
 ## 已知限制与延期工作
+<a id="known-limitations-and-deferred-work"></a>
 
-本提供方需要有效的 Parallel API 密钥。共享来源约定要求可移植 snippet，因此没有 excerpt 的结果会被丢弃。提供方额度、账户访问权限和返回结果由 Parallel 决定。
+搜索可用性与结果取决于 Parallel 账户和服务。
+
+- 需要有效的 Parallel API 密钥。
+- 共享来源约定要求可移植 snippet，因此没有非空 excerpt 的结果会被丢弃。
+- 提供方额度、账户访问权限和返回结果由 Parallel 控制。
 
 <a id="dev-note"></a>
-## 开发备注
+### 开发备注
+
+<details>
+<summary>维护者工作上下文——点击展开</summary>
 
 无。
+
+</details>

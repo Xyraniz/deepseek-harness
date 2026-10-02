@@ -63,13 +63,35 @@ Each shared web search sends the query as a one-item `search_queries` array and 
 <a id="model-experience"></a>
 ## Model Experience
 
-Parallel provides cited search sources to the shared `web_search` tool. The provider does not create an additional model-facing tool or change the tool's schema.
+### Parallel search sources
+
+#### What the model sees
+
+The shared `web_search` result contains each retained source's URL, optional title, first non-blank excerpt as `snippet`, and optional `publishedAt`. Results without a non-blank excerpt are omitted.
+
+#### Token effect
+
+The provider adds no fixed text. Token use varies with Parallel's returned source metadata and snippets, subject to the shared service's result cap.
+
+#### KV Cache effect
+
+The sources reach the model as a tool reply after the search call. This appends content to the conversation history without replacing the earlier request prefix.
 
 ## Known Limitations and Deferred Work
+<a id="known-limitations-and-deferred-work"></a>
 
-The provider needs a valid Parallel API key. It drops results without an excerpt because the shared source contract requires a portable snippet. Provider quotas, account access, and returned results are determined by Parallel.
+Search availability and results depend on Parallel's account and service.
+
+- A valid Parallel API key is required.
+- Results without a non-blank excerpt are dropped because the shared source contract requires a portable snippet.
+- Provider quotas, account access, and returned results are controlled by Parallel.
 
 <a id="dev-note"></a>
-## Dev Note
+### Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
 
 None.
+
+</details>

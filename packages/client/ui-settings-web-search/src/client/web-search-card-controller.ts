@@ -111,7 +111,10 @@ export class WebSearchCardController {
     this.store.set(this.projection())
   }
 
-  /** Re-read after the Host reports a change to the selected API key. */
+  /**
+   * Re-read after the Host reports a change to the selected API key.
+   * @param ref - credential reference reported by the Host.
+   */
   refreshCredential(ref: string): void {
     if (ref === API_KEY_REFS[this.provider()]) void this.readCredential()
   }

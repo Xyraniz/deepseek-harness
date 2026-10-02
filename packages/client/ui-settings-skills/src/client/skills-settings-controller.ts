@@ -36,7 +36,10 @@ export class SkillsSettingsController {
     this.unsubscribe = scope.subscribe(() => { this.publish() })
   }
 
-  /** Build the plain-data component face. */
+  /**
+   * Build the plain-data component face.
+   * @returns the store and enabled-setting action consumed by the component.
+   */
   inject(): SkillsSettingsFace {
     return {
       hooks: { skillsSettings: this.store },

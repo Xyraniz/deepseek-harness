@@ -181,6 +181,25 @@ describe('dsh-skill-filesystem plugin exports', () => {
 })
 
 describe('FileSystemSkillProvider', () => {
+  it('hides the packaged Claude Design skill by default', async () => {
+    const home = await tempDir('skill-claude-design-disabled')
+    const ctx = await setupLocal(home)
+
+    expect((await ctx.skills.list()).map(skill => skill.name)).not.toContain('claude-design')
+    expect(await ctx.skills.get('claude-design')).toBeUndefined()
+  })
+
+  it('loads the packaged Claude Design skill when enabled', async () => {
+    const home = await tempDir('skill-claude-design-enabled')
+    const ctx = await setupLocal(home, { claudeDesignEnabled: true })
+
+    const candidate = (await ctx.skills.list()).find(skill => skill.name === 'claude-design')
+    expect(candidate).toMatchObject({ name: 'claude-design', source: 'bundled' })
+    const skill = await ctx.skills.get('claude-design')
+    expect(skill).toMatchObject({ name: 'claude-design', source: 'bundled' })
+    expect(skill?.content.length).toBeGreaterThan(0)
+  })
+
   it('discovers project, custom, user, and agents skill roots in priority order', async () => {
     const home = await tempDir('skill-home')
     const project = await tempDir('skill-project')
