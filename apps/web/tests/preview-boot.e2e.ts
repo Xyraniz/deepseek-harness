@@ -28,7 +28,7 @@ import { chromium } from 'playwright'
 import type { Browser } from 'playwright'
 import { expect, it } from 'vitest'
 import {
-  composeProfile, configTrees, indexWorkspacePackages, packVfsImage, packPreviewFixture,
+  composePreviewProfile, configTrees, indexWorkspacePackages, packVfsImage, packPreviewFixture,
   previewFixtures, WRAPPER_CONTRACT,
 } from '@deepseek-ai/dsh-experimental-webworker-packer'
 import {
@@ -141,10 +141,12 @@ function requireVfsAssets(): PreviewAssets {
   }
   if (!existsSync(IMAGE_FILE)) {
     const packed = packVfsImage({
-      config: composeProfile(REPO_ROOT, PROFILE),
+      config: composePreviewProfile(REPO_ROOT, PROFILE),
       profile: PROFILE,
       workspaces: indexWorkspacePackages(REPO_ROOT),
-      resolveFrom: REPO_ROOT,
+      // Profile roster dependencies are installed with the base bundle, including
+      // external plugins that do not have a root-level pnpm symlink.
+      resolveFrom: join(REPO_ROOT, 'packages/bundle/base'),
       configTrees: configTrees(REPO_ROOT),
     })
     if (packed.missing.length > 0) {

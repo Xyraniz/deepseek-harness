@@ -16,7 +16,7 @@ import {
 } from '@deepseek-ai/dsh-experimental-webworker-runtime'
 import { packVfsImage } from './pack.ts'
 import {
-  composeProfile, configTrees, describePack, indexWorkspacePackages, packPreviewFixture, previewFixtures,
+  composePreviewProfile, configTrees, describePack, indexWorkspacePackages, packPreviewFixture, previewFixtures,
 } from './repository.ts'
 
 /**
@@ -46,11 +46,11 @@ const out = flag('out')
 const outputFile = isAbsolute(out) ? out : resolve(process.cwd(), out)
 
 const result = packVfsImage({
-  config: composeProfile(repoRoot, profile),
+  config: composePreviewProfile(repoRoot, profile),
   profile,
   root: flag('root', '/dsh'),
   workspaces: indexWorkspacePackages(repoRoot),
-  resolveFrom: repoRoot,
+  resolveFrom: join(repoRoot, 'packages/bundle/base'),
   configTrees: configTrees(repoRoot),
 })
 

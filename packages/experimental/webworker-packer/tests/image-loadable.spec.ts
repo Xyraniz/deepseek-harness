@@ -16,7 +16,8 @@
  * and the active loader are module-level slots. The "starts with nothing loaded"
  * case asserts the instance the spec holds is the one that did the work.
  */
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -49,6 +50,40 @@ it.each([
   'node_modules/@scope/plugin/lib/client.terminal.js',
 ])('keeps page-owned Client chunk %s outside the Worker reachability sweep', (path) => {
   expect(picomatch([...PAGE_ASSETS], { dot: true })(path)).toBe(true)
+})
+
+it('keeps external plugin entrypoints named by the composed profile', () => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-packer-external-plugin-'))
+  try {
+    const addPackage = (name: string): void => {
+      const directory = join(root, 'node_modules', name)
+      mkdirSync(join(directory, 'lib'), { recursive: true })
+      writeFileSync(join(directory, 'package.json'), JSON.stringify({
+        name,
+        version: '1.0.0',
+        type: 'module',
+        exports: { '.': './lib/index.js' },
+      }))
+      writeFileSync(join(directory, 'lib/index.js'), 'export const pluginReady = true\n')
+    }
+    addPackage('@fixture/external-plugin')
+    addPackage('@fixture/nested-plugin')
+
+    const result = packVfsImage({
+      config: '- id: external-plugin\n  name: \'@fixture/external-plugin\'\n  config:\n    plugins:\n      - id: nested-plugin\n        name: \'@fixture/nested-plugin\'\n',
+      profile: 'external-plugin-entrypoint-check',
+      workspaces: new Map(),
+      resolveFrom: root,
+      entries: [],
+    })
+
+    expect(result.missing).toEqual([])
+    expect(result.files['node_modules/@fixture/external-plugin/lib/index.js']).toBeDefined()
+    expect(result.files['node_modules/@fixture/nested-plugin/lib/index.js']).toBeDefined()
+    expect(result.transform.visited).toBe(2)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
 
 describe('preview example overlays', () => {

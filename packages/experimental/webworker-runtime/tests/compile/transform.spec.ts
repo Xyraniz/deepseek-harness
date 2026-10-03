@@ -131,6 +131,11 @@ check(
   check('lowered=false for plain CommonJS', cjs.lowered, false)
   check('unlowered code is the input verbatim', cjs.code, plain)
 
+  const legacyOctal = 'module.exports = "\\033"\n'
+  const cjsOctal = lowerModuleSource({ filename: 'node_modules/p/legacy-octal.cjs', source: legacyOctal })
+  check('legacy CommonJS octal escapes remain packable', cjsOctal.lowered, false)
+  check('legacy CommonJS source stays verbatim', cjsOctal.code, legacyOctal)
+
   // A CommonJS body that still contains a suspension point must be rewritten:
   // `await` inside a function is the ALS protocol's business even with no ESM.
   const cjsAwait = lowerModuleSource({

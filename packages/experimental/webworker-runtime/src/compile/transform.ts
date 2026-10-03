@@ -477,7 +477,22 @@ class Transformer {
         allowAwaitOutsideFunction: true,
       }) as unknown as Node
     } catch (reason) {
-      this.fail(`parse failed: ${(reason as Error).message}`, 0)
+      const moduleFailure = (reason as Error).message
+      if (!moduleFailure.includes('Octal literal in strict mode')) {
+        this.fail('parse failed: ' + moduleFailure, 0)
+      }
+      // Legacy CommonJS may contain octal escapes, which are valid in scripts
+      // but rejected by the module parser's implicit strict mode. Retry only
+      // that syntax as a script; ESM still fails script parsing below.
+      try {
+        program = parse(this.source, {
+          ecmaVersion: 'latest',
+          sourceType: 'script',
+          allowAwaitOutsideFunction: true,
+        }) as unknown as Node
+      } catch {
+        this.fail('parse failed: ' + moduleFailure, 0)
+      }
     }
     this.indexCreateRequireImports(program)
     this.visit(program, { asyncGenerator: false, functionDepth: 0, moduleScope: true })

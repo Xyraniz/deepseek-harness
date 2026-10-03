@@ -11,6 +11,8 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
+import * as yaml from 'js-yaml'
+import { applyEntryPatches, entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { DSH_HOME_ENV } from '@deepseek-ai/dsh-home-paths'
 import type { ConfigTree, ImageTree, PackResult } from './pack.ts'
 
@@ -113,6 +115,21 @@ export function composeProfile(repoRoot: string, profile: string): string {
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
+}
+
+/**
+ * Compose a profile for the static browser Preview worker. The local Node web
+ * host supports the OpenCode adapter, but this browser-only runtime replaces
+ * pi-ai with an unavailable-provider stub, so keep that Node provider disabled
+ * in the Preview image while leaving the live `dsh web` profile unchanged.
+ * @param repoRoot - Absolute repository root.
+ * @param profile - Profile name.
+ * @returns The composed Preview configuration.
+ */
+export function composePreviewProfile(repoRoot: string, profile: string): string {
+  const rows = yaml.load(composeProfile(repoRoot, profile), { schema: entryListSchema }) as Parameters<typeof applyEntryPatches>[0]
+  const previewRows = applyEntryPatches(rows, [{ id: 'opencode2dsh', disabled: true }], () => {})
+  return yaml.dump(previewRows, { schema: entryListSchema, noRefs: true, lineWidth: -1 })
 }
 
 /**

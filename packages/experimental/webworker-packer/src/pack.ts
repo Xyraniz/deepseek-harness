@@ -80,7 +80,7 @@ export interface PackOptions {
   readonly root?: string
   /** Package name to absolute directory, for workspace and vendored packages. */
   readonly workspaces: ReadonlyMap<string, string>
-  /** Directory Node-style dependency resolution walks up from for the roster. */
+  /** Directory where profile dependencies are installed; roster resolution walks up from here. */
   readonly resolveFrom: string
   /** Config trees to copy in beside the composition. */
   readonly configTrees?: readonly ConfigTree[]
@@ -160,7 +160,11 @@ function moduleNamesOf(rows: unknown, names: Set<string>): void {
     if (typeof name === 'string' && (name.startsWith('@') || name.includes('/'))) {
       names.add(packageNameOf(name))
     }
-    moduleNamesOf(config, names)
+    if (Array.isArray(config)) {
+      moduleNamesOf(config, names)
+    } else if (typeof config === 'object' && config !== null) {
+      moduleNamesOf((config as { plugins?: unknown }).plugins, names)
+    }
   }
 }
 
@@ -392,8 +396,10 @@ function sweepImage(
     } catch {
       continue
     }
-    // Every non-wildcard runtime face is a root; a face resolving onto a page
-    // asset is kept untransformed below rather than excluded here.
+    // Every declared plugin face is a root, including external packages. Their
+    // entrypoints are loaded from the composed profile at runtime, which a
+    // static source walk cannot discover. A face resolving onto a page asset is
+    // kept untransformed below rather than excluded here.
     const subpaths = manifest.exports === undefined
       ? ['.']
       : Object.entries(manifest.exports)
@@ -619,7 +625,11 @@ export function packVfsImage(options: PackOptions): PackResult {
   for (const tree of configTrees) collectTree(tree.directory, files, tree.mount, relativePath => !excluded(relativePath))
 
   const executables = dropExecutables(files)
-  const rootPackages = [...packages.keys()].filter(name => options.workspaces.has(name))
+  // Workspace dependencies can be reached through plugin names selected at
+  // runtime (for example the platform-specific directory picker), so retain
+  // all their declared package faces. External packages only become roots when
+  // the composed profile names them directly.
+  const rootPackages = [...packages.keys()].filter(name => options.workspaces.has(name) || roster.includes(name))
   const { swept, transform, javascriptEntries, droppedJavascriptEntries, unresolvedExternalRequests } =
     sweepImage(files, options, rootPackages, root)
 
