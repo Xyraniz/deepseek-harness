@@ -14,6 +14,17 @@ import type { AssemblyPlan, ClientPluginModule } from './roster.ts'
 export const MODULES_PACKAGE = '@deepseek-ai/dsh-client-modules'
 
 /**
+ * Browser bundles register a factory on `window.__ModuleLoader__` instead of
+ * exporting a Cordis module directly. Whole-client unit tests boot modules
+ * from pre-arrived namespaces, so these external bundles need an explicit
+ * inert replacement; the assembled browser E2E suite exercises the real
+ * bundle through the production ModuleLoader.
+ */
+const BUNDLED_CLIENT_TEST_MODULES: Readonly<Record<string, ClientPluginModule>> = {
+  '@opencode2dsh/dsh-plugin': { apply: () => undefined },
+}
+
+/**
  * Resolve each roster row to its plugin module: `plan.provide[name]` when
  * present, otherwise a `/client` import resolved by the repository's tsconfig
  * path aliases under Vitest. The bootstrap row is the
@@ -33,7 +44,7 @@ export async function loadPluginModules(plan: AssemblyPlan): Promise<ReadonlyMap
       modules.set(name, modulesClient)
       continue
     }
-    modules.set(name, provided ?? await importClient(name))
+    modules.set(name, provided ?? BUNDLED_CLIENT_TEST_MODULES[name] ?? await importClient(name))
   }
   return modules
 }

@@ -19,7 +19,7 @@ const interruptedExpected = fileURLToPath(new URL('../../../snapshots/web/voice-
 const recordingExpected = fileURLToPath(new URL('../../../snapshots/web/voice-input/recording.expected.md', import.meta.url))
 const bundle = fileURLToPath(new URL('../../../packages/experimental/voice-input-bundle', import.meta.url))
 
-it.skipIf(webSnapshotMode() === 'record')('guides voice setup, records from standby and submits only the reviewed transcript through Session replay', async () => {
+it.skipIf(webSnapshotMode() === 'record' || process.platform === 'win32')('guides voice setup, records from standby and submits only the reviewed transcript through Bash-backed Session replay', async () => {
   const scratch = await mkdtemp(join(tmpdir(), 'dsh-voice-browser-'))
   const resources: { scaffold?: WebScaffold; browser?: Browser } = {}
   onTestFinished(async () => {

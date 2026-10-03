@@ -562,6 +562,9 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
   const overlayPatches: PatchOptions[] = [
     // Without HMR the profile applies configuration changes at its next start.
     ...options.profile?.hmr === false ? [{ id: 'hmr', disabled: true }] : [],
+    // The shipped provider owns a long-lived agent subprocess and a live model
+    // catalog. Keep generic UI scenarios isolated from the developer's cache.
+    { id: 'opencode2dsh', disabled: true },
     { id: 'session-log-deepseek', config: { enabled: false } },
     { id: 'ui-plugin-manager', config: { registryProbeEnabled: false } },
     ...mode === 'record' || options.deepSeekMissingCredential === true
@@ -1530,7 +1533,7 @@ const ARIA_AGE =
 function normalizeAria(snapshot: string, workspaceCwd: string, age: boolean): string {
   // The session heading renders the workspace's basename, not the full
   // path, so both spellings must collapse to the token.
-  const base = workspaceCwd.split('/').pop()!
+  const base = basename(workspaceCwd)
   return (age ? snapshot.replace(ARIA_AGE, '{{age}}') : snapshot)
     .split(workspaceCwd).join('{{cwd}}')
     .split(base).join('{{workspace}}')

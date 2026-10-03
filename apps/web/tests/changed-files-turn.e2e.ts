@@ -55,7 +55,7 @@ function hoverOpacityTransition(page: Page, closing: boolean): Promise<{ duratio
   }), closing)
 }
 
-describe('web e2e: a git workspace turn ends with its changed files', () => {
+describe.skipIf(process.platform === 'win32')('web e2e: a git workspace turn ends with its changed files (Bash replay)', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
@@ -243,8 +243,9 @@ describe('web e2e: a git workspace turn ends with its changed files', () => {
     const row = card.getByRole('button', { name: '查看 notes.txt 的改动' })
     const preview = page.locator('[data-changes-hover-preview]')
     const entrance = hoverOpacityTransition(page, false)
-    await row.hover()
-    expect(await entrance).toEqual({ duration: 100, opacity: 0.5 })
+    const hovering = row.hover()
+    const [, transition] = await Promise.all([hovering, entrance])
+    expect(transition).toEqual({ duration: 100, opacity: 0.5 })
     await preview.locator('[data-review-view="unified"]').waitFor({ state: 'visible' })
     expect(await preview.locator('[data-diff-side]').count()).toBe(0)
     expect(await preview.locator('[data-diff-hunk-header]').isVisible()).toBe(false)

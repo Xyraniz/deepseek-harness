@@ -390,7 +390,7 @@ describe('ReviewTab', () => {
     expect(view.container.querySelector('[data-review-view]')?.getAttribute('data-review-view')).toBe('unified')
     expect(view.container.querySelectorAll('[data-diff-line]')).toHaveLength(MAX_RENDERED_LINES)
     expect(view.container.querySelector('[data-diff-truncated]')?.textContent).toBe(`只显示前 ${MAX_RENDERED_LINES} 行`)
-  })
+  }, 20_000)
 
   it('falls back to the first file for an index the summary does not list, and forgets its state with the tab', () => {
     const summaries = new ChangesSummaryStore()

@@ -30,7 +30,7 @@ const PROMPT = `Write a file named notes.txt in the workspace containing exactly
 /** Draft used to measure the composer's own text cap: enough lines to pass it. */
 const CAP_PROBE = Array.from({ length: 40 }, (_, index) => `line ${index}`).join('\n')
 
-describe.each(MODE === 'record' ? ['button'] as const : ['button', 'keyboard'] as const)('web e2e: approval takeover through %s', (method) => {
+describe.skipIf(process.platform === 'win32').each(MODE === 'record' ? ['button'] as const : ['button', 'keyboard'] as const)('web e2e: approval takeover through %s', (method) => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page

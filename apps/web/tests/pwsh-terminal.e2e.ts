@@ -93,10 +93,6 @@ describe.skipIf(MODE === 'record' || !HAS_PWSH)('web e2e: pwsh calls use the bas
     expect(text).toContain('Get-Item : Cannot find path')
     expect(text).not.toContain('[exit code: 1]')
     const snapshot = (await captureStableAria(page, '[data-terminal]', scaffold.workspaceCwd))
-      // normalizeAria collapses the workspace basename with a '/' split, which
-      // misses Windows temp paths; collapse it here too (a no-op on POSIX) so
-      // the golden is platform-independent.
-      .split(scaffold.workspaceCwd.split(/[\\/]/).pop()!).join('{{workspace}}')
       .split(SEED_ID).join('{{seededId}}')
     await compareOrRefreshGolden(TERMINAL_EXPECTED, snapshot, MODE)
   }, 60_000)
